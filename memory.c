@@ -41,7 +41,7 @@
 /*
  * HEAPO Swap In/Out
  *            
- * 18.04.16  -  Add POS_SWAP interface to handle_pte_fault, do_swap_page - nyg
+ * 16.04.18  -  YeonJin Noh : Add POS_SWAP interface to handle_pte_fault, do_swap_page
  *
  *
  */
