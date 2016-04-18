@@ -337,11 +337,10 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 					break;		
 			}
 			//////////////////////////////////////////////////////
-#else
+#endif
 			new_page = alloc_page_vma(gfp_mask, vma, addr);
 			if (!new_page)
 				break;		/* Out of memory */
-#endif
 		}
 
 		/*
