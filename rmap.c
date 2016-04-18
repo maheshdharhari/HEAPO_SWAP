@@ -42,6 +42,15 @@
  *     pte map lock
  */
 
+/*
+ * HEAPO Swap In/Out
+ *            
+ * 18.04.16  -  Add POS_SWAP interface to rmap_walk_anon - nyg
+ *
+ *
+ */
+
+
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
