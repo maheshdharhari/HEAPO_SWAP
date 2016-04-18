@@ -4,7 +4,8 @@
    Author: Taeho Hwang (htaeh@hanyang.ac.kr)
    Embedded Software Systems Laboratory, Hanyang University
    
-   16.04.18: Make git repository (yjs, nyg)
+   16.04.18 - nyg: first commit
+   16.04.18 - yjs: add swap_bit to pos_map_array and interfaces
 */
 
 #include <linux/mm.h>
