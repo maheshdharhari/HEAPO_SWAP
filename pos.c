@@ -95,10 +95,10 @@ pos_alloc_page_slowpath(struct zone *zone, unsigned int order, int migratetype)
 	struct scan_control sc = {
 		.gfp_mask = GFP_KERNEL,
 		.may_writepage = 1,
-		/// reclaim threshold ¼³Á¤
+		/// reclaim threshold ì„¤ì •
 		.nr_to_reclaim = max(high_wmark_pages(zone), SWAP_CLUSTER_MAX),
 		.may_unmap = 1,
-		.may_swap = 0,		//force swap »ç¿ë°¡´ÉÇÏ³ª?
+		.may_swap = 0,		//force swap ì‚¬ìš©ê°€ëŠ¥
 		.order = order,
 		.priority = DEF_PRIORITY,
 		.target_mem_cgroup = NULL,
@@ -180,7 +180,9 @@ static void pos_shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 	enum lru_list lru;
 	unsigned long nr_reclaimed = 0;
 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+	///// Inactive list Search size
 	unsigned long nr_to_scan = nr_to_reclaim - sc->nr_reclaimed;
+	/////
 	struct blk_plug plug;
 	///nyg_160411
 	act_size = get_lru_size(lruvec, LRU_INACTIVE_ANON);
@@ -286,7 +288,7 @@ static void pos_shrink_active_list(unsigned long nr_to_scan,
 }
 
 
-/// nyg_160411_force reclaim flag ÅõÀÔ?
+/// nyg_160411_force reclaim flag íˆ¬ì…?
 static noinline_for_stack unsigned long
 pos_shrink_inactive_list(unsigned long , struct lruvec *lruvec,
 		     struct scan_control *sc, enum lru_list lru)
@@ -708,8 +710,8 @@ void pos_kmem_cache_free(struct kmem_cache *cachep, void *objp)
 ////////////////////////////////////////////////////////////////////////////////
 
 
-//addr¸¦ Æ÷ÇÔÇÏ´Â vma¸¦ rb-tree¸¦ Å½»öÇÏ¿© ¸®ÅÏ
-//¾øÀ» °æ¿ì addr < vm_end¸¦ ¸¸Á·ÇÏ´Â °¡Àå °¡±î¿î vma°¡ ¸®ÅÏµÊ
+//addrë¥¼ í¬í•¨í•˜ëŠ” vmaë¥¼ rb-treeë¥¼ íƒìƒ‰í•˜ì—¬ ë¦¬í„´
+//ì—†ì„ ê²½ìš° addr < vm_endë¥¼ ë§Œì¡±í•˜ëŠ” ê°€ì¥ ê°€ê¹Œìš´ vmaê°€ ë¦¬í„´ë¨
 struct pos_vm_area *pos_find_vma(struct pos_superblock *sb, unsigned long addr)
 {
 	struct pos_vm_area *vma = NULL;
@@ -782,10 +784,10 @@ out:
 }
 
 
-//¸®ÅÏµÇ´Â vma´Â »ğÀÔµÇ´Â vmaÀÇ ´ÙÀ½¿¡ À§Ä¡ÇÑ vmaÀÌ´Ù.
-//pprev´Â »ğÀÔµÇ´Â vmaÀÇ ÀÌÀü¿¡ À§Ä¡ÇÑ vmaÀÌ´Ù.
-//rb_parent´Â »ğÀÔµÇ´Â ³ëµå¸¦ °¡¸®Å°°Ô µÉ ºÎ¸ğ³ëµåÀÌ´Ù.
-//rb_link´Â rb_parentÀÇ left, right Áß ¿¬°áµÉ À§Ä¡¸¦ ¾Ë·ÁÁØ´Ù.
+//ë¦¬í„´ë˜ëŠ” vmaëŠ” ì‚½ì…ë˜ëŠ” vmaì˜ ë‹¤ìŒì— ìœ„ì¹˜í•œ vmaì´ë‹¤.
+//pprevëŠ” ì‚½ì…ë˜ëŠ” vmaì˜ ì´ì „ì— ìœ„ì¹˜í•œ vmaì´ë‹¤.
+//rb_parentëŠ” ì‚½ì…ë˜ëŠ” ë…¸ë“œë¥¼ ê°€ë¦¬í‚¤ê²Œ ë  ë¶€ëª¨ë…¸ë“œì´ë‹¤.
+//rb_linkëŠ” rb_parentì˜ left, right ì¤‘ ì—°ê²°ë  ìœ„ì¹˜ë¥¼ ì•Œë ¤ì¤€ë‹¤.
 static struct pos_vm_area *
 pos_find_vma_prepare(struct pos_superblock *sb, unsigned long addr,
 		struct pos_vm_area **pprev, struct rb_node ***rb_link,
@@ -824,7 +826,7 @@ pos_find_vma_prepare(struct pos_superblock *sb, unsigned long addr,
 }
 
 
-//ÀüÃ¼ vmaµé·Î ±¸¼ºµÈ list¿¡ »ğÀÔ
+//ì „ì²´ vmaë“¤ë¡œ êµ¬ì„±ëœ listì— ì‚½ì…
 void pos_vma_link_list(struct pos_superblock *sb, struct pos_vm_area *vma,
 		struct pos_vm_area *prev, struct rb_node *rb_parent)
 {
@@ -842,7 +844,7 @@ void pos_vma_link_list(struct pos_superblock *sb, struct pos_vm_area *vma,
 }
 
 
-//ÀüÃ¼ vmaµé·Î ±¸¼ºµÈ rb-tree¿¡ »ğÀÔ
+//ì „ì²´ vmaë“¤ë¡œ êµ¬ì„±ëœ rb-treeì— ì‚½ì…
 void pos_vma_link_rb(struct pos_superblock *sb, struct pos_vm_area *vma,
 		struct rb_node **rb_link, struct rb_node *rb_parent)
 {
@@ -851,7 +853,7 @@ void pos_vma_link_rb(struct pos_superblock *sb, struct pos_vm_area *vma,
 }
 
 
-//ÀüÃ¼ vmaµé·Î ±¸¼ºµÈ rb-tree, list¿¡ »ğÀÔ
+//ì „ì²´ vmaë“¤ë¡œ êµ¬ì„±ëœ rb-tree, listì— ì‚½ì…
 int pos_insert_vm_area(struct pos_superblock *sb, struct pos_vm_area *vma)
 {
 	struct pos_vm_area * __vma, * prev;
@@ -873,7 +875,7 @@ int pos_insert_vm_area(struct pos_superblock *sb, struct pos_vm_area *vma)
 }
 
 
-//Æ¯Á¤ object storage¸¦ ±¸¼ºÇÏ´Â vmaµé·Î ±¸¼ºµÈ list¿¡ »ğÀÔ
+//íŠ¹ì • object storageë¥¼ êµ¬ì„±í•˜ëŠ” vmaë“¤ë¡œ êµ¬ì„±ëœ listì— ì‚½ì…
 void pos_vma_link_list2(struct pos_descriptor *desc, struct pos_vm_area *vma)
 {
 	struct pos_vm_area *prev, *next;
@@ -907,9 +909,9 @@ void pos_vma_link_list2(struct pos_descriptor *desc, struct pos_vm_area *vma)
 }
 
 
-//len Å©±â¸¸Å­À» ÇÒ´çÇØÁÙ ¼ö ÀÖ´Â ºó °ø°£ÀÇ ½ÃÀÛ ÁÖ¼Ò¸¦ ¸®ÅÏ
-//Ã¹ ¹øÂ° ±âÁØÁ¡ÀÌ µÇ´Â vma¸¦ Ã£´Â °Í¸¸ rb-tree Å½»ö
-//Ã¹ ¹øÂ° ±âÁØÁ¡ ÀÌÈÄ ºÎÅÍ´Â list Å½»ö (first fit)
+//len í¬ê¸°ë§Œí¼ì„ í• ë‹¹í•´ì¤„ ìˆ˜ ìˆëŠ” ë¹ˆ ê³µê°„ì˜ ì‹œì‘ ì£¼ì†Œë¥¼ ë¦¬í„´
+//ì²« ë²ˆì§¸ ê¸°ì¤€ì ì´ ë˜ëŠ” vmaë¥¼ ì°¾ëŠ” ê²ƒë§Œ rb-tree íƒìƒ‰
+//ì²« ë²ˆì§¸ ê¸°ì¤€ì  ì´í›„ ë¶€í„°ëŠ” list íƒìƒ‰ (first fit)
 unsigned long pos_get_unmapped_area(unsigned long len, struct pos_vm_area **prev_vma)
 {
 	struct pos_superblock *sb;
@@ -1068,7 +1070,7 @@ void pos_free_map_array(struct pos_map_array *map_array)
 }
 
 
-//ÇØ´ç levelÀÇ map_array°¡ °¡¸®Å³ ¼ö ÀÖ´Â pageÀÇ °¹¼ö¸¦ ¹İÈ¯
+//í•´ë‹¹ levelì˜ map_arrayê°€ ê°€ë¦¬í‚¬ ìˆ˜ ìˆëŠ” pageì˜ ê°¯ìˆ˜ë¥¼ ë°˜í™˜
 unsigned long pos_level_to_pages(int level)
 {
 	unsigned long level_pages;
@@ -1084,7 +1086,7 @@ unsigned long pos_level_to_pages(int level)
 }
 
 
-//ÁÖ¾îÁø page °¹¼ö¸¦ °¡¸®Å°±â À§ÇØ ÇÊ¿äÇÑ levelÀ» ¸®ÅÏ
+//ì£¼ì–´ì§„ page ê°¯ìˆ˜ë¥¼ ê°€ë¦¬í‚¤ê¸° ìœ„í•´ í•„ìš”í•œ levelì„ ë¦¬í„´
 int pos_pages_to_level(unsigned long nr_pages)
 {
 	unsigned long level_pages;
@@ -1103,8 +1105,8 @@ int pos_pages_to_level(unsigned long nr_pages)
 }
 
 
-//addr¸¦ Æ÷ÇÔÇÑ page¿Í ¸ÊÇÎµÈ page frameÀÇ number¸¦ ¹İÈ¯ÇÔ
-//multi-levelÀÇ map_array¸¦ Å½»öÇÏ¿© pfnÀ» ±¸ÇÔ
+//addrë¥¼ í¬í•¨í•œ pageì™€ ë§µí•‘ëœ page frameì˜ numberë¥¼ ë°˜í™˜í•¨
+//multi-levelì˜ map_arrayë¥¼ íƒìƒ‰í•˜ì—¬ pfnì„ êµ¬í•¨
 unsigned long pos_find_and_alloc_pfn(struct pos_vm_area *vma, unsigned long addr)
 {
 	struct pos_map_array *map_array;
@@ -1925,7 +1927,7 @@ int pos_merge_map_array(struct pos_vm_area *dst_vma, struct pos_vm_area *src_vma
 
 	sb = pos_get_sb();
 
-	//dstÀÇ map_array ·¹º§ °áÁ¤
+	//dstì˜ map_array ë ˆë²¨ ê²°ì •
 	level = pos_pages_to_level(dst_vma->nr_pages);
 
 	if (level > dst_vma->map_array->level) {
@@ -1936,7 +1938,7 @@ int pos_merge_map_array(struct pos_vm_area *dst_vma, struct pos_vm_area *src_vma
 
 		level_gap = level - dst_vma->map_array->level;
 
-		//dstÀÇ map_array level È®Àå
+		//dstì˜ map_array level í™•ì¥
 		for (i=0 ; i<level_gap; i++) {
 
 			tmp_array = pos_kmem_cache_alloc(sb->pos_map_array_struct_cachep, GFP_KERNEL);
@@ -1978,16 +1980,16 @@ int pos_create_or_merge_vma(struct pos_superblock *sb,
 			
 		if (next_vma && vm_end == next_vma->vm_start &&
 				next_vma->ns_record == record) {
-		//case 1. prev_vma, next_vma¿Í merge
+		//case 1. prev_vma, next_vmaì™€ merge
 
-			//prev_vma·Î ÇÕÄ§
+			//prev_vmaë¡œ í•©ì¹¨
 			prev_vma->vm_end = next_vma->vm_end;
 			prev_vma->nr_pages = (prev_vma->vm_end-prev_vma->vm_start)>>PAGE_SHIFT;
 
-			//rb-tree¿¡¼­ next_vma Á¦°Å
+			//rb-treeì—ì„œ next_vma ì œê±°
 			rb_erase(&next_vma->vm_rb, &sb->sb_rb);
 
-			//list¿¡¼­ next_vma Á¦°Å
+			//listì—ì„œ next_vma ì œê±°
 			prev_vma->vm_next = next_vma->vm_next;
 			next_vma->vm_next = NULL;
 			
@@ -1995,7 +1997,7 @@ int pos_create_or_merge_vma(struct pos_superblock *sb,
 			
 			sb->vm_count--;
 
-			//nextÀÇ map_array ¿£Æ®¸®¸¦ prevÀÇ map_array¿¡ »ğÀÔ
+			//nextì˜ map_array ì—”íŠ¸ë¦¬ë¥¼ prevì˜ map_arrayì— ì‚½ì…
 			pos_merge_map_array(prev_vma, next_vma);
 
 			// Free pos_vm_area
@@ -2003,13 +2005,13 @@ int pos_create_or_merge_vma(struct pos_superblock *sb,
 			
 		}
 		else {
-		//case 2. prev_vma¿Í merge
+		//case 2. prev_vmaì™€ merge
 
-			//prev_vma·Î ÇÕÄ§
+			//prev_vmaë¡œ í•©ì¹¨
 			prev_vma->vm_end = vm_end;
 			prev_vma->nr_pages = (prev_vma->vm_end-prev_vma->vm_start)>>PAGE_SHIFT;
 
-			//map_arrayÀÇ level Àç¼³Á¤
+			//map_arrayì˜ level ì¬ì„¤ì •
 			pos_merge_map_array(prev_vma, NULL);
 
 		}
@@ -2017,18 +2019,18 @@ int pos_create_or_merge_vma(struct pos_superblock *sb,
 	} 
 	else if (next_vma && vm_end == next_vma->vm_start &&
 			next_vma->ns_record == record) {
-	//case 3. next_vma¿Í merge
+	//case 3. next_vmaì™€ merge
 
 		struct pos_vm_area *tmp_vma;
 		unsigned long origin_nr_pages;
 
 
-		//next_vma·Î ÇÕÄ§
+		//next_vmaë¡œ í•©ì¹¨
 		next_vma->vm_start = vm_start;
 		origin_nr_pages = next_vma->nr_pages;
 		next_vma->nr_pages = (next_vma->vm_end-next_vma->vm_start)>>PAGE_SHIFT;
 
-		//±âÁ¸ÀÇ next_vmaÀÇ map_array¸¦ Àç±¸¼ºÇÏ±â À§ÇØ tmp_vma¿Í ±³È¯
+		//ê¸°ì¡´ì˜ next_vmaì˜ map_arrayë¥¼ ì¬êµ¬ì„±í•˜ê¸° ìœ„í•´ tmp_vmaì™€ êµí™˜
 		tmp_vma = pos_kmem_cache_alloc(sb->pos_vma_struct_cachep, GFP_KERNEL);
 		tmp_vma->map_array = next_vma->map_array;
 
@@ -2055,7 +2057,7 @@ int pos_create_or_merge_vma(struct pos_superblock *sb,
 		pos_kmem_cache_free(sb->pos_vma_struct_cachep, tmp_vma);
 	}
 	else {
-	//case 4. merge ÇÏÁö ¾ÊÀ½
+	//case 4. merge í•˜ì§€ ì•ŠìŒ
 
 		struct pos_vm_area *pos_vma;
 
@@ -2260,7 +2262,7 @@ int pos_delete_or_split_vma(struct pos_superblock *sb,
 	if (vma->vm_start == addr) {
 		
 		if (vma->vm_end - vma->vm_start == len) {
-		//case 1. ¼¼±×¸ÕÆ® ÀüºÎ ÇØÁ¦
+		//case 1. ì„¸ê·¸ë¨¼íŠ¸ ì „ë¶€ í•´ì œ
 
 			// Remove pos_vm_area
 			pos_remove_vm_area(sb, vma, prev_vma);
@@ -2275,7 +2277,7 @@ int pos_delete_or_split_vma(struct pos_superblock *sb,
 		}
 //		else if (vma->vm_end-vma->vm_start < len) {	// ??
 		else if (vma->vm_end-vma->vm_start > len) {	// ??
-		//case 2. ¼¼±×¸ÕÆ® ¾ÕºÎºĞ ÇØÁ¦
+		//case 2. ì„¸ê·¸ë¨¼íŠ¸ ì•ë¶€ë¶„ í•´ì œ
 
 			struct pos_map_array *tmp_map_array;
 
@@ -2296,13 +2298,13 @@ int pos_delete_or_split_vma(struct pos_superblock *sb,
 			// Initialize swap bitmap
 			bitmap_zero(vma->map_array->swap_bitmap, SWAP_BITMAP_BITS);
 #endif
-			//ºĞ¸®µÉ map_array ºÎºĞÀ» »õ·Î¿î vmaÀÇ map_array¿¡ º¹»ç
+			//ë¶„ë¦¬ë  map_array ë¶€ë¶„ì„ ìƒˆë¡œìš´ vmaì˜ map_arrayì— ë³µì‚¬
 			first_pn = addr>>PAGE_SHIFT;
 			last_pn = (addr+len)>>PAGE_SHIFT;
 			if (pos_copy_partial_map_array(vma, tmp_map_array, first_pn, last_pn) == POS_ERROR)
 				return POS_ERROR;
 
-			 //±âÁ¸ÀÇ map_array´Â ÇØÁ¦
+			 //ê¸°ì¡´ì˜ map_arrayëŠ” í•´ì œ
 			pos_free_map_array(tmp_map_array);
 
 		}
@@ -2312,12 +2314,12 @@ int pos_delete_or_split_vma(struct pos_superblock *sb,
 
 	}
 	else if (addr+len == vma->vm_end) {
-	//case 3. ¼¼±×¸ÕÆ® µŞºÎºĞ ÇØÁ¦
+	//case 3. ì„¸ê·¸ë¨¼íŠ¸ ë’·ë¶€ë¶„ í•´ì œ
 
 		vma->vm_end = addr;
 		vma->nr_pages = (vma->vm_end-vma->vm_start)>>PAGE_SHIFT;
 
-		//±âÁ¸ÀÇ vma¿¡¼­ map_array Àç±¸¼º
+		//ê¸°ì¡´ì˜ vmaì—ì„œ map_array ì¬êµ¬ì„±
 		first_pn = addr>>PAGE_SHIFT;
 		last_pn = (addr+len)>>PAGE_SHIFT;
 		pos_reduce_map_array(vma->map_array, first_pn, last_pn);
@@ -2325,15 +2327,15 @@ int pos_delete_or_split_vma(struct pos_superblock *sb,
 
 	}
 	else if (addr+len < vma->vm_end) {
-	//case 4. ¼¼±×¸ÕÆ® Áß°£ ºÎºĞ ÇØÁ¦
+	//case 4. ì„¸ê·¸ë¨¼íŠ¸ ì¤‘ê°„ ë¶€ë¶„ í•´ì œ
 
 		struct pos_vm_area *next_vma;
 
-		//±âÁ¸ÀÇ vmaÁ¤º¸ ¼öÁ¤
+		//ê¸°ì¡´ì˜ vmaì •ë³´ ìˆ˜ì •
 		vma->vm_end = addr;
 		vma->nr_pages = (vma->vm_end-vma->vm_start) >>PAGE_SHIFT;
 
-		//»õ·Î¿î vma »ı¼º
+		//ìƒˆë¡œìš´ vma ìƒì„±
 
 		// Alloc pos_vm_area
 		next_vma = pos_kmem_cache_alloc(sb->pos_vma_struct_cachep, GFP_KERNEL);
@@ -2361,13 +2363,13 @@ int pos_delete_or_split_vma(struct pos_superblock *sb,
 		pos_insert_vm_area(sb, next_vma);
 		pos_vma_link_list2(desc, next_vma);
 
-		//ºĞ¸®µÉ map_array ºÎºĞÀ» »õ·Î¿î vmaÀÇ map_arry¿¡ º¹»ç
+		//ë¶„ë¦¬ë  map_array ë¶€ë¶„ì„ ìƒˆë¡œìš´ vmaì˜ map_arryì— ë³µì‚¬
 		first_pn = addr>>PAGE_SHIFT;
 		last_pn = (addr+len)>>PAGE_SHIFT;
 		if (pos_copy_partial_map_array(next_vma, vma->map_array, first_pn, last_pn) == POS_ERROR)
 			return POS_ERROR;
 
-		//±âÁ¸ÀÇ vma¿¡¼­ map_array Àç±¸¼º
+		//ê¸°ì¡´ì˜ vmaì—ì„œ map_array ì¬êµ¬ì„±
 		last_pn = vma->vm_end>>PAGE_SHIFT;
 		pos_reduce_map_array(vma->map_array, first_pn, last_pn);
 		pos_reduce_map_array_level(vma);
@@ -2384,7 +2386,7 @@ int pos_delete_or_split_vma(struct pos_superblock *sb,
 ////////////////////////////////////////////////////////////////////////////////
 
 
-//»ç¿ëÀÚ ÁÖ¼Ò °ø°£¿¡ vm_area_struct¸¦ »ı¼º ÈÄ »ğÀÔ
+//ì‚¬ìš©ì ì£¼ì†Œ ê³µê°„ì— vm_area_structë¥¼ ìƒì„± í›„ ì‚½ì…
 int pos_map_vma(struct mm_struct *mm, unsigned long start, unsigned long end,
 	fmode_t mode)
 {
@@ -2455,7 +2457,7 @@ int pos_map_vma(struct mm_struct *mm, unsigned long start, unsigned long end,
 }
 
 
-//»ç¿ëÀÚ ÁÖ¼Ò °ø°£¿¡ vm_area_struct¸¦ »èÁ¦, page table entryµµ »èÁ¦µÊ
+//ì‚¬ìš©ì ì£¼ì†Œ ê³µê°„ì— vm_area_structë¥¼ ì‚­ì œ, page table entryë„ ì‚­ì œë¨
 void pos_unmap_vma(struct mm_struct *mm, struct pos_vm_area *pos_vma)
 {
 	unsigned long start;
@@ -2594,7 +2596,7 @@ asmlinkage int sys_pos_delete(char __user *name)
 	while (!list_empty(&desc->d_vm_list)){
 		pos_vma = list_entry(desc->d_vm_list.next, struct pos_vm_area, vm_next2);
 
-		//prev_pos_vma´Â ÀüÃ¼ pos_vm_area·Î ±¸¼ºµÈ ¸®½ºÆ®¿¡¼­ ÀÌÀü ³ëµå¸¦ °¡¸®Å²´Ù
+		//prev_pos_vmaëŠ” ì „ì²´ pos_vm_areaë¡œ êµ¬ì„±ëœ ë¦¬ìŠ¤íŠ¸ì—ì„œ ì´ì „ ë…¸ë“œë¥¼ ê°€ë¦¬í‚¨ë‹¤
 		pos_vma_tmp = pos_find_vma_prev(sb, pos_vma->vm_start, &prev_pos_vma);
 		if (pos_vma != pos_vma_tmp){
 			return POS_ERROR;
@@ -2746,7 +2748,7 @@ asmlinkage int sys_pos_unmap(char __user *name)
 		task_pid = task_pid->task_next;
 	}
 
-	//¸ÊÇÎÇÏÁö ¾ÊÀº ÇÁ·Î¼¼½ºÀÏ °æ¿ì
+	//ë§µí•‘í•˜ì§€ ì•Šì€ í”„ë¡œì„¸ìŠ¤ì¼ ê²½ìš°
 	if (task_pid == NULL)
 		return POS_ERROR;
 	
@@ -2801,7 +2803,7 @@ asmlinkage void *sys_pos_seg_alloc(char __user *name, unsigned long len)
 	
 	desc = record->desc;
 
-	//ÇØ´ç °´Ã¼ÀúÀå¼Ò¸¦ ¸ÊÇÎÇÑ ÇÁ·Î¼¼½ºÀÎÁö È®ÀÎ
+	//í•´ë‹¹ ê°ì²´ì €ì¥ì†Œë¥¼ ë§µí•‘í•œ í”„ë¡œì„¸ìŠ¤ì¸ì§€ í™•ì¸
 	task_pid = record->task_list;
 	while (task_pid) {
 		if (task_pid->pid_nr == task_pid_nr(task)) {
@@ -2811,7 +2813,7 @@ asmlinkage void *sys_pos_seg_alloc(char __user *name, unsigned long len)
 		}
 	}
 
-	//¸ÊÇÎÇÏÁö ¾ÊÀº ÇÁ·Î¼¼½ºÀÏ °æ¿ì
+	//ë§µí•‘í•˜ì§€ ì•Šì€ í”„ë¡œì„¸ìŠ¤ì¼ ê²½ìš°
 	if (task_pid == NULL)
 		return POS_ERROR;
 
@@ -2827,16 +2829,16 @@ asmlinkage void *sys_pos_seg_alloc(char __user *name, unsigned long len)
 	else
 		next_vma = NULL;
 
-	//vma¸¦ »ı¼ºÇÏ°Å³ª merge
+	//vmaë¥¼ ìƒì„±í•˜ê±°ë‚˜ merge
 	pos_create_or_merge_vma(sb, record, desc, prev_vma, next_vma, vm_start, vm_end);
 
-	//ÇØ´ç °´Ã¼ÀúÀå¼Ò¸¦ ¸ÊÇÎÇÑ ¸ğµç ÇÁ·Î¼¼½º¿¡ »õ·Î¿î ¼¼±×¸ÕÆ® ¸ÊÇÎ½ÃÅ´
+	//í•´ë‹¹ ê°ì²´ì €ì¥ì†Œë¥¼ ë§µí•‘í•œ ëª¨ë“  í”„ë¡œì„¸ìŠ¤ì— ìƒˆë¡œìš´ ì„¸ê·¸ë¨¼íŠ¸ ë§µí•‘ì‹œí‚´
 	prev_task_pid = &record->task_list;
 	task_pid = record->task_list;
 	while (task_pid) {
 		pid = find_get_pid(task_pid->pid_nr);
 		if (pid == NULL) {
-			//»èÁ¦
+			//ì‚­ì œ
 			*prev_task_pid = task_pid->task_next;
 			task_pid->task_next = NULL;
 
@@ -2863,7 +2865,7 @@ asmlinkage void *sys_pos_seg_alloc(char __user *name, unsigned long len)
 		task_pid = task_pid->task_next;
 	}
 
-	//¼¼±×¸ÕÆ®ÀÇ ½ÃÀÛ ÁÖ¼Ò ¸®ÅÏ
+	//ì„¸ê·¸ë¨¼íŠ¸ì˜ ì‹œì‘ ì£¼ì†Œ ë¦¬í„´
 	return (void *)vm_start;
 }
 
@@ -2904,7 +2906,7 @@ asmlinkage int sys_pos_seg_free(char __user *name, void *addr, unsigned long len
 
 	desc = record->desc;
 
- 	//ÇØ´ç °´Ã¼ÀúÀå¼Ò¸¦ ¸ÊÇÎÇÑ ÇÁ·Î¼¼½ºÀÎÁö È®ÀÎ
+ 	//í•´ë‹¹ ê°ì²´ì €ì¥ì†Œë¥¼ ë§µí•‘í•œ í”„ë¡œì„¸ìŠ¤ì¸ì§€ í™•ì¸
 	task_pid = record->task_list;
 	while (task_pid) {
 		if (task_pid->pid_nr ==  task_pid_nr(task)) {
@@ -2914,36 +2916,36 @@ asmlinkage int sys_pos_seg_free(char __user *name, void *addr, unsigned long len
 		}
 	}
 
-	//¸ÊÇÎÇÏÁö ¾ÊÀº ÇÁ·Î¼¼½ºÀÏ °æ¿ì
+	//ë§µí•‘í•˜ì§€ ì•Šì€ í”„ë¡œì„¸ìŠ¤ì¼ ê²½ìš°
 	if (task_pid == NULL)
 		return POS_ERROR;
 	
-	//prev_pos_vma´Â ÀüÃ¼ pos_vm_area·Î ±¸¼ºµÈ ¸®½ºÆ®¿¡¼­ ÀÌÀü ³ëµå¸¦ °¡¸®Å²´Ù
+	//prev_pos_vmaëŠ” ì „ì²´ pos_vm_areaë¡œ êµ¬ì„±ëœ ë¦¬ìŠ¤íŠ¸ì—ì„œ ì´ì „ ë…¸ë“œë¥¼ ê°€ë¦¬í‚¨ë‹¤
 	pos_vma = pos_find_vma_prev(sb, (unsigned long)addr, &prev_pos_vma);
 	if (!pos_vma)
 		return POS_ERROR;
 
-	//ÁöÁ¤µÈ object storage°¡ ¸Â´ÂÁö È®ÀÎ
+	//ì§€ì •ëœ object storageê°€ ë§ëŠ”ì§€ í™•ì¸
 	if (pos_vma->ns_record != record)
 		return POS_ERROR;
 
-	//prime segment ÀÎÁö È®ÀÎ
+	//prime segment ì¸ì§€ í™•ì¸
 	//if (desc->prime_seg == pos_vma->vm_start)
 	if (desc->prime_seg == (unsigned long)(addr))
 		return POS_ERROR;
 
-	//vma¸¦ Á¦°ÅÇÏ°Å³ª split
+	//vmaë¥¼ ì œê±°í•˜ê±°ë‚˜ split
 	if (pos_delete_or_split_vma(sb, record, desc,
 			pos_vma, prev_pos_vma, (unsigned long)addr, len) == POS_ERROR)
 		return POS_ERROR;
 
-	//ÇØ´ç °´Ã¼ÀúÀå¼Ò¸¦ ¸ÊÇÎÇÑ ¸ğµç ÇÁ·Î¼¼½º¿¡¼­ ¼¼±×¸ÕÆ® ¸ÊÇÎ ÇØÁ¦½ÃÅ´
+	//í•´ë‹¹ ê°ì²´ì €ì¥ì†Œë¥¼ ë§µí•‘í•œ ëª¨ë“  í”„ë¡œì„¸ìŠ¤ì—ì„œ ì„¸ê·¸ë¨¼íŠ¸ ë§µí•‘ í•´ì œì‹œí‚´
 	prev_task_pid = &record->task_list;
 	task_pid = record->task_list;
 	while (task_pid) {
 		pid = find_get_pid(task_pid->pid_nr);
 		if (pid == NULL) {
-			//»èÁ¦
+			//ì‚­ì œ
 			*prev_task_pid = task_pid->task_next;
 			task_pid->task_next = NULL;
 
@@ -3000,7 +3002,7 @@ asmlinkage  void *sys_pos_is_mapped(char __user *name)
 
 	desc = record->desc;
 
-	//ÇØ´ç °´Ã¼ÀúÀå¼Ò¸¦ ¸ÊÇÎÇÑ ÇÁ·Î¼¼½ºÀÎÁö È®ÀÎ
+	//í•´ë‹¹ ê°ì²´ì €ì¥ì†Œë¥¼ ë§µí•‘í•œ í”„ë¡œì„¸ìŠ¤ì¸ì§€ í™•ì¸
 	task_pid = record->task_list;
 	while (task_pid) {
 
@@ -3011,7 +3013,7 @@ asmlinkage  void *sys_pos_is_mapped(char __user *name)
 		}
 	}
 
-	//¸ÊÇÎÇÏÁö ¾ÊÀº ÇÁ·Î¼¼½ºÀÏ °æ¿ì
+	//ë§µí•‘í•˜ì§€ ì•Šì€ í”„ë¡œì„¸ìŠ¤ì¼ ê²½ìš°
 	if (task_pid == NULL)
 		return (void *)POS_ERROR;
 	
