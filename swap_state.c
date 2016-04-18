@@ -6,6 +6,15 @@
  *
  *  Rewritten to use page cache, (C) 1998 Stephen Tweedie
  */
+
+/*
+ * HEAPO Swap In/Out
+ *            
+ * 16.04.18  -  YeonJin Noh : Add POS_SWAP interface to read_swap_cache_async - nyg
+ *
+ *
+ */
+
 #include <linux/mm.h>
 #include <linux/gfp.h>
 #include <linux/kernel_stat.h>
