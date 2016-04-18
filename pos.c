@@ -5,7 +5,7 @@
    Embedded Software Systems Laboratory, Hanyang University
    
    16.04.18 - nyg: first commit
-   16.04.18 - yjs: add swap_bit to pos_map_array and interfaces
+   16.04.18 - Jinsoo Yoo: Add swap_bitmap to pos_map_array for supporting swap In/Out
 */
 
 #include <linux/mm.h>
