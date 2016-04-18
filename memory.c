@@ -3196,7 +3196,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	///map_array구조체 업데이트
 	if(POS_AREA_START <= address && address < POS_AREA_END)
 	{
-		unsigned long = page_to_pfn(page);
+		unsigned long pfn = page_to_pfn(page);
 		pos_set_swap_entry(address,pfn);
 	}
 	///
