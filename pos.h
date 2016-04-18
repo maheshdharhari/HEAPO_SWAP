@@ -3,6 +3,9 @@
    
    Author: Taeho Hwang (htaeh@hanyang.ac.kr)
    Embedded Software Systems Laboratory, Hanyang University
+
+   16.04.18 - nyg: first commit
+   16.04.18 - Jinsoo Yoo: Add swap_bitmap to pos_map_array for supporting swap In/Out
 */
 
 #ifndef _LINUX_POS_H
