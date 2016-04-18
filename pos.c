@@ -89,6 +89,7 @@ void pos_vfree(void *addr)
 // POS (Cheolhee Lee)
 struct page *pos_alloc_page(int kind)
 {
+	struct page *page;
 	int nid;
 	pg_data_t *pgdat;
 	struct zone *zone;
@@ -102,8 +103,7 @@ struct page *pos_alloc_page(int kind)
 #ifdef POS_SWAP
 		page = pos_buffered_rmqueue(zone, 0);
 		if(page==NULL)
-			page = pos_alloc_page_slowpath(zone,0, 2); // movable 
-		return page;	
+			return pos_alloc_page_slowpath(zone,0, 2); // movable 
 #endif
 		return pos_buffered_rmqueue(zone, 0);
 	}

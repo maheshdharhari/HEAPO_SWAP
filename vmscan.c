@@ -29,6 +29,10 @@
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>	/* for try_to_release_page(),
 					buffer_heads_over_limit */
+#ifdef POS_SWAP
+#include <linux/pos.h>
+#endif
+
 #include <linux/mm_inline.h>
 #include <linux/backing-dev.h>
 #include <linux/rmap.h>
@@ -3206,7 +3210,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
 #ifdef POS_SWAP
 /// nyg_160410
 
-static inline struct page *
+struct page *
 pos_alloc_page_slowpath(struct zone *zone, unsigned int order, int migratetype)
 {
 	struct page *page;
@@ -3223,7 +3227,7 @@ pos_alloc_page_slowpath(struct zone *zone, unsigned int order, int migratetype)
 		.target_mem_cgroup = NULL,
 	};
 
-	pos_shrink_zone(zone, order);
+	pos_shrink_zone(zone, sc);
 
 	///retry
 	page = pos_buffered_rmqueue(zone, order);

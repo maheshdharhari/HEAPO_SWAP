@@ -11,7 +11,6 @@
 #ifndef _LINUX_POS_H
 #define _LINUX_POS_H
 
-
 #include <linux/mm_types.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
@@ -41,13 +40,14 @@ extern struct page* pos_alloc_page(int kind);
 extern struct pos_superblock* pos_get_sb(void);
 extern void pos_process_exit (void);
 
+#define POS_SWAP
 #ifdef POS_SWAP
 extern unsigned long pos_get_swap_entry(unsigned long vaddr);
 extern int pos_set_swap_entry(unsigned long vaddr, unsigned long swap_addr);
 extern int pos_reset_swap_entry(unsigned long vaddr, unsigned long pfn);
+extern struct page* pos_alloc_page_slowpath(struct zone *zone, unsigned int order, int migratetype);
 #endif
 
-#define POS_SWAP
 #define POS_MAGIC				0x19830732
 
 //#define POS_NAME_TABLE		25
