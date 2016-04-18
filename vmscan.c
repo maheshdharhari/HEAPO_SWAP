@@ -29,6 +29,9 @@
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>	/* for try_to_release_page(),
 					buffer_heads_over_limit */
+#ifdef POS_SWAP
+#include <linux/pos.h>
+#endif
 
 #include <linux/mm_inline.h>
 #include <linux/backing-dev.h>
