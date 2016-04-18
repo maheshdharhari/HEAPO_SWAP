@@ -40,6 +40,10 @@
 
 #include <linux/kernel.h>	//printk
 
+#ifdef POS_SWAP
+#include <linux/swap.h>
+#endif
+
 struct pos_superblock* pos_sb;
 
 struct kmem_cache *pos_task_pid_struct_cachep;
@@ -464,6 +468,7 @@ void pos_free_map_array(struct pos_map_array *map_array)
 {
 	struct pos_superblock *sb;
 	int i;
+	swp_entry_t swp_entry;
 
 	sb = pos_get_sb();
 
@@ -475,8 +480,9 @@ void pos_free_map_array(struct pos_map_array *map_array)
 #ifdef POS_SWAP
 				if(test_bit(i, map_array->swap_bitmap)){
 					// Remove the page from swap cache and swap partition
-					free_swap_and_cache(map_array->pfn[i]);
-					reset_bit(i, map->array->swap_bitmap);
+					swp_entry.val = (unsigned long)(map_array->pfns[i]);
+					free_swap_and_cache(swp_entry);
+					clear_bit(i, map_array->swap_bitmap);
 				}
 				else{
 					// Release NVRAM page
@@ -619,14 +625,13 @@ unsigned long pos_find_and_alloc_pfn(struct pos_vm_area *vma, unsigned long addr
 unsigned long pos_get_swap_entry(unsigned long vaddr)			
 {
 	struct pos_superblock *sb;
-	struct pos_vm_area *vma;
+	struct pos_vm_area *pos_vma;
 	struct pos_map_array *map_array;
 	unsigned long *swap_bitmap;
 	unsigned long pages;
 	unsigned long sublevel_pages;
 	int level;
 	int index;
-	struct pos_superblock *sb;
 
 	// Get pos_superblock
 	sb = pos_get_sb();
@@ -680,14 +685,13 @@ unsigned long pos_get_swap_entry(unsigned long vaddr)
 int pos_set_swap_entry(unsigned long vaddr, unsigned long swap_entry)
 {
 	struct pos_superblock *sb;
-	struct pos_vm_area *vma;
+	struct pos_vm_area *pos_vma;
 	struct pos_map_array *map_array;
 	unsigned long *swap_bitmap;
 	unsigned long pages;
 	unsigned long sublevel_pages;
 	int level;
 	int index;
-	struct pos_superblock *sb;
 
 	// Get pos_superblock
 	sb = pos_get_sb();
@@ -731,6 +735,8 @@ int pos_set_swap_entry(unsigned long vaddr, unsigned long swap_entry)
 	// Update the map_array and the swap_bitmap
 	map_array->pfns[index] = swap_entry;
 	set_bit(index, swap_bitmap);
+
+	return POS_NORMAL;
 }
 #endif
 
@@ -738,14 +744,13 @@ int pos_set_swap_entry(unsigned long vaddr, unsigned long swap_entry)
 int pos_reset_swap_entry(unsigned long vaddr, unsigned long pfn)
 {
 	struct pos_superblock *sb;
-	struct pos_vm_area *vma;
+	struct pos_vm_area *pos_vma;
 	struct pos_map_array *map_array;
 	unsigned long *swap_bitmap;
 	unsigned long pages;
 	unsigned long sublevel_pages;
 	int level;
 	int index;
-	struct pos_superblock *sb;
 
 	// Get pos_superblock
 	sb = pos_get_sb();
@@ -788,7 +793,9 @@ int pos_reset_swap_entry(unsigned long vaddr, unsigned long pfn)
 
 	// Update the map_array and the swap_bitmap
 	map_array->pfns[index] = pfn;
-	reset_bit(index, swap_bitmap);
+	clear_bit(index, swap_bitmap);
+
+	return POS_NORMAL;
 }
 #endif
 
@@ -1568,6 +1575,7 @@ void pos_reduce_map_array(struct pos_map_array *map_array,
 {
 	struct pos_superblock *sb;
 	int i;
+	swp_entry_t swp_entry;
 
 	sb = pos_get_sb();
 
@@ -1580,8 +1588,9 @@ void pos_reduce_map_array(struct pos_map_array *map_array,
 #ifdef POS_SWAP
 				if(test_bit(i, map_array->swap_bitmap)){
 					// Remove the page from swap cache and swap partition
-					free_swap_and_cache(map_array->pfn[i]);
-					reset_bit(i, map->array->swap_bitmap);
+					swp_entry.val = (unsigned long)(map_array->pfns[i]);
+					free_swap_and_cache(swp_entry);
+					clear_bit(i, map_array->swap_bitmap);
 				}
 				else{
 					// Release NVRAM page
@@ -1833,7 +1842,7 @@ int pos_map_vma(struct mm_struct *mm, unsigned long start, unsigned long end,
 {
 	struct vm_area_struct *vma, *prev;
 	unsigned int vm_flags = 0;
-	int error;
+//	int error;
 
 //	vm_flags = VM_SHARED | VM_MAYSHARE | VM_NORESERVE;
 	vm_flags = VM_NORESERVE | VM_POS;
@@ -2596,7 +2605,7 @@ void pos_process_exit(void)
 	struct task_struct *task;
 	struct mm_struct *mm;
 	struct pos_vm_area *pos;
-	struct list_head *list;
+//	struct list_head *list;
 
 	task = current;
 	mm = task -> mm;
