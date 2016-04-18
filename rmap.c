@@ -1638,10 +1638,9 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc)
 			}
 			break;
 		}
-#else
+#endif
 		if (rwc->done && rwc->done(page))
 			break;
-#endif
 	}
 	anon_vma_unlock_read(anon_vma);
 	return ret;
