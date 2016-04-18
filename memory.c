@@ -3835,12 +3835,10 @@ static int handle_pte_fault(struct mm_struct *mm,
 {
 	pte_t entry;
 	spinlock_t *ptl;
-
+	unsigned long pfn;
 	entry = *pte;
 	if (!pte_present(entry)) {
 		if (pte_none(entry)) {
-
-
 			// POS (Cheolhee Lee)
 			if(POS_AREA_START <= address && address < POS_AREA_END){
 ///nyg_160408
@@ -3848,17 +3846,17 @@ static int handle_pte_fault(struct mm_struct *mm,
 #ifdef POS_SWAP
 				/// nyg_160408 
 				/// swap_bitmap 검사 추가, 1이면 do_pos_swap_page 호출
-				pos_swap_entry=pos_get_swap_entry(address);				
-				if(pos_swap_entry!=POS_EMPTY)
+				pfn = pos_get_swap_entry(address);
+				swp_entry_t pos_swap_entry = {.val = pfn};
+				if(pos_get_swap_entry(address))				
 				{
-					entry = *pos_swap_entry;
+					pte = swp_entry_to_pte(pos_swap_entry);
 					return do_swap_page(mm, vma, address,
-					pos_swap_entry, pmd, flags, entry);
+					pte, pmd, flags, entry);
 				}
 				/////////////
-#else
-				return do_pos_area_fault(mm, vma, address, pmd, pte, flags);
 #endif
+				return do_pos_area_fault(mm, vma, address, pmd, pte, flags);
 			}
 /*			if(vma -> vm_flags & VM_POS_SECTION){
 				return do_pos_section_fault(mm, vma, address, pmd, entry);
@@ -3908,7 +3906,7 @@ unlock:
 	pte_unmap_unlock(pte, ptl);
 	return 0;
 }
-#endif
+
 /*
  * By the time we get here, we already hold the mm semaphore
  */

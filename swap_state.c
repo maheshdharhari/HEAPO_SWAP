@@ -415,7 +415,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		page_cache_release(new_page);
 	return found_page;
 }
-#endif
+
 
 static unsigned long swapin_nr_pages(unsigned long offset)
 {
