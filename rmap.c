@@ -1643,7 +1643,7 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc)
 		{
 			if(POS_AREA_START <= address && address < POS_AREA_END){
 				swp_entry_t swap_entry = { .val = page_private(page) };
-				pos_set_swap_entry(address, swap_entry);
+				pos_set_swap_entry(address, swap_entry.val);
 			}
 			break;
 		}

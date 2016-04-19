@@ -40,6 +40,7 @@ extern struct page* pos_alloc_page(int kind);
 extern struct pos_superblock* pos_get_sb(void);
 extern void pos_process_exit (void);
 
+
 #define POS_SWAP
 #ifdef POS_SWAP
 extern unsigned long pos_get_swap_entry(unsigned long vaddr);
