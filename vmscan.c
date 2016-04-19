@@ -3209,9 +3209,6 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
 
 #ifdef POS_SWAP
 /// nyg_160410
-
-
-
 /*
  * shrink_page_list() returns the number of reclaimed pages
  */
@@ -3446,8 +3443,9 @@ keep:
 	*ret_nr_immediate += nr_immediate;
 	return nr_reclaimed;
 }
+#endif
 
-
+#ifdef POS_SWAP
 /// nyg_160411_force reclaim flag 투입?
 static noinline_for_stack unsigned long
 pos_shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
@@ -3494,13 +3492,11 @@ pos_shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 	if (nr_taken == 0)
 		return 0;
 
-	///nyg_160411
-	//////////////////////////////////////////////////////////////////////////////
+	//nyg_160411
 	nr_reclaimed = pos_shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
 				&nr_dirty, &nr_unqueued_dirty, &nr_congested,
 				&nr_writeback, &nr_immediate,
-				force_reclaim); ////////////////// 160414  change may swap use 
-	//////////////////////////////////////////////////////////////////////////////
+				force_reclaim); // 160414 change may swap use 
 
 	spin_lock_irq(&zone->lru_lock);
 	reclaim_stat->recent_scanned[0] += nr_taken;  // 0 = anon
@@ -3565,8 +3561,9 @@ pos_shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 		trace_shrink_flags(0));
 	return nr_reclaimed;
 }
+#endif
 
-
+#ifdef POS_SWAP
 static void pos_shrink_active_list(unsigned long nr_to_scan,
 			       struct lruvec *lruvec,
 			       struct scan_control *sc,
@@ -3613,12 +3610,9 @@ static void pos_shrink_active_list(unsigned long nr_to_scan,
 				    &vm_flags)) {
 			nr_rotated += hpage_nr_pages(page);
 			///nyg_160411
-			///////////////////////////////////////////////////////////////
 			list_add(&page->lru, &l_active);
 			continue;
-			///////////////////////////////////////////////////////////////
-			//need check -by nyg
-		}		///////nyg_160411
+		}
 		else
 		{
 			ClearPageActive(page);	/* we are de-activating */
@@ -3638,49 +3632,48 @@ static void pos_shrink_active_list(unsigned long nr_to_scan,
 	spin_unlock_irq(&zone->lru_lock);
 	free_hot_cold_page_list(&l_hold, 1);
 }
+#endif
 
+#ifdef POS_SWAP
+// nyg_160411
 
 static void pos_shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 {
 	unsigned long act_size;
 	unsigned long nr_reclaimed = 0;
 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
-	///// Inactive list Search size
+
+	// Inactive list Search size
 	unsigned long nr_to_scan = nr_to_reclaim - sc->nr_reclaimed;
-	/////
 	struct blk_plug plug;
-	///nyg_160411
-	act_size = get_lru_size(lruvec, LRU_INACTIVE_ANON);
-	/////
+
+	// Get the length of active list
+	act_size = get_lru_size(lruvec, LRU_ACTIVE_ANON);
 
 	blk_start_plug(&plug);
-	///nyg_160411
-	///////////////////////////////////////////////////////////////////
-	nr_reclaimed += pos_shrink_inactive_list(nr_to_scan ,lruvec, sc,0);
-	if (inactive_list_is_low(lruvec, 1))
-	{
+
+	// Shrink Inactive list first.
+	nr_reclaimed += pos_shrink_inactive_list(nr_to_scan ,lruvec, sc, 0);
+
+	// Balance the length between Inactive and Active list
+	if (inactive_list_is_low(lruvec, 1)){
 		pos_shrink_active_list(act_size, lruvec, sc, 1);
 	}
-	///////////////////////////////////////////////////////////////////
-	if (nr_reclaimed < nr_to_reclaim)
-	{
-		nr_to_scan -= nr_reclaimed;
-		//sc->may_swap = 1;
-		nr_reclaimed += pos_shrink_inactive_list(nr_to_scan, lruvec, sc ,0);
-		if(inactive_list_is_low(lruvec, 1))
-		{
-			pos_shrink_active_list(act_size, lruvec, sc, 1);
-		}
-	}			
+
 	blk_finish_plug(&plug);
+
+	// Update scan control
 	sc->nr_reclaimed += nr_reclaimed;
+
 	throttle_vm_writeout(sc->gfp_mask);
 }
+#endif
 
-
+#ifdef POS_SWAP
 static void pos_shrink_zone(struct zone *zone, struct scan_control *sc)
 {
 	unsigned long nr_reclaimed, nr_scanned;
+	int nr_iter = 0;
 
 	do {
 		struct mem_cgroup *root = sc->target_mem_cgroup;
@@ -3697,8 +3690,10 @@ static void pos_shrink_zone(struct zone *zone, struct scan_control *sc)
 		do {
 			struct lruvec *lruvec;
 
+			/* Get the Inactive and Active list of the cgroup*/
 			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
 
+			/* Shrink Inactive and Active list */
 			pos_shrink_lruvec(lruvec, sc);
 
 			/*
@@ -3717,18 +3712,23 @@ static void pos_shrink_zone(struct zone *zone, struct scan_control *sc)
 				mem_cgroup_iter_break(root, memcg);
 				break;
 			}
+
+			/* Get the next cgroup of the zone */
 			memcg = mem_cgroup_iter(root, memcg, &reclaim);
 		} while (memcg);
 
 		vmpressure(sc->gfp_mask, sc->target_mem_cgroup,
 			   sc->nr_scanned - nr_scanned,
 			   sc->nr_reclaimed - nr_reclaimed);
-
-	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
-					 sc->nr_scanned - nr_scanned, sc));
+		
+		nr_iter++;
+	} while (sc->nr_reclaimed < sc->nr_to_recaliaim && nr_iter == 1);
+//	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
+//					 sc->nr_scanned - nr_scanned, sc));
 }
+#endif
 
-
+#ifdef POS_SWAP
 struct page *
 pos_alloc_page_slowpath(struct zone *zone, unsigned int order, int migratetype)
 {
@@ -3750,16 +3750,14 @@ pos_alloc_page_slowpath(struct zone *zone, unsigned int order, int migratetype)
 	///retry
 	page = pos_buffered_rmqueue(zone, order);
 
-	if(page==NULL)
+	if(page == NULL)
 	{	
-		//pos_shrink_zone(zone, order, true);
+		// pos_shrink_zone(zone, order, true);
 		warn_alloc_failed(GFP_KERNEL, order, NULL);
 		return page;
 	}
 	return page;
 }
-
-
 #endif
 
 

@@ -106,10 +106,12 @@ struct page *pos_alloc_page(int kind)
 		}
 #ifdef POS_SWAP
 		page = pos_buffered_rmqueue(zone, 0);
-		if(page==NULL)
+		if(page == NULL)
 			return pos_alloc_page_slowpath(zone,0, 2); // movable 
-#endif
+		return page;
+#else
 		return pos_buffered_rmqueue(zone, 0);
+#endif
 	}
 	else if (POS_KERNEL_AREA)
 		return alloc_page(GFP_KERNEL | __GFP_ZERO);
@@ -638,6 +640,9 @@ unsigned long pos_get_swap_entry(unsigned long vaddr)
 
 	// Get pos_vm_area including the vaddr	
 	pos_vma = pos_find_vma(sb, vaddr);
+	if(pos_vma == NULL){
+		return POS_EMPTY;
+	}
 	
 	// Get map_array index of the vaddr
 	pages = (vaddr - pos_vma->vm_start) >> PAGE_SHIFT;

@@ -335,17 +335,16 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		 * Get a new page to read into from swap.
 		 */
 		if (!new_page) {
-///nyg_160410
+// nyg_160410
 #ifdef POS_SWAP
-			///nyg_160410
-			///address가 HEAPO영역일 시 NVRAM용 페이지 할당하도록 수정
+			// nyg_160410
+			// address가 HEAPO영역일 시 NVRAM용 페이지 할당하도록 수정
 			if(POS_AREA_START <= addr && addr < POS_AREA_END)
 			{
-				new_page=pos_alloc_page(POS_USER_AREA);
+				new_page = pos_alloc_page(POS_USER_AREA);
 				if (!new_page)
 					break;		
 			}
-			//////////////////////////////////////////////////////
 #endif
 			new_page = alloc_page_vma(gfp_mask, vma, addr);
 			if (!new_page)

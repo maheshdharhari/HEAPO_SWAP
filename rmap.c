@@ -1636,7 +1636,8 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc)
 		ret = rwc->rmap_one(page, vma, address, rwc->arg);
 		if (ret != SWAP_AGAIN)
 			break;
-/// nyg_160415 // swap out시 해당 페이지의 map array swap entry 교체 
+// nyg_160415
+// swap out시 해당 페이지의 map array swap entry 교체 
 #ifdef POS_SWAP
 		if (rwc->done && rwc->done(page))
 		{
@@ -1646,9 +1647,10 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc)
 			}
 			break;
 		}
-#endif
+#else
 		if (rwc->done && rwc->done(page))
 			break;
+#endif
 	}
 	anon_vma_unlock_read(anon_vma);
 	return ret;

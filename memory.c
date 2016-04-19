@@ -3197,14 +3197,14 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	mem_cgroup_commit_charge_swapin(page, ptr);
 	
 #ifdef POS_SWAP
-	///nyg_160408
-	///map_array구조체 업데이트
+	// nyg_160408
+	// map_array구조체 업데이트
 	if(POS_AREA_START <= address && address < POS_AREA_END)
 	{
 		unsigned long pfn = page_to_pfn(page);
-		pos_set_swap_entry(address,pfn);
+		pos_reset_swap_entry(address, pfn);
 	}
-	///
+	//
 #endif
 
 	swap_free(entry);
@@ -3835,26 +3835,26 @@ static int handle_pte_fault(struct mm_struct *mm,
 {
 	pte_t entry;
 	spinlock_t *ptl;
+#ifdef POS_SWAP
 	unsigned long pfn;
+#endif
 	entry = *pte;
 	if (!pte_present(entry)) {
 		if (pte_none(entry)) {
 			// POS (Cheolhee Lee)
 			if(POS_AREA_START <= address && address < POS_AREA_END){
-///nyg_160408
-///do_pos_swap_page 호출하도록 변경
+// nyg_160408
+// do_pos_swap_page 호출하도록 변경
 #ifdef POS_SWAP
-				/// nyg_160408 
-				/// swap_bitmap 검사 추가, 1이면 do_pos_swap_page 호출
-				pfn = pos_get_swap_entry(address);
-				swp_entry_t pos_swap_entry = {.val = pfn};
-				if(pos_get_swap_entry(address))				
+				// nyg_160408 
+				// swap_bitmap 검사 추가, 1이면 do_pos_swap_page 호출
+				if((pfn=pos_get_swap_entry(address))!=POS_EMPTY)				
 				{
+					swp_entry_t pos_swap_entry = {.val = pfn};
 					pte = swp_entry_to_pte(pos_swap_entry);
 					return do_swap_page(mm, vma, address,
 					pte, pmd, flags, entry);
 				}
-				/////////////
 #endif
 				return do_pos_area_fault(mm, vma, address, pmd, pte, flags);
 			}
