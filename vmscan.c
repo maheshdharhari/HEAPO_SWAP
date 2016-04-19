@@ -3722,7 +3722,7 @@ static void pos_shrink_zone(struct zone *zone, struct scan_control *sc)
 			   sc->nr_reclaimed - nr_reclaimed);
 		
 		nr_iter++;
-	} while (sc->nr_reclaimed < sc->nr_to_recaliaim && nr_iter == 1);
+	} while (sc->nr_reclaimed < sc->nr_to_reclaim && nr_iter == 1);
 //	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
 //					 sc->nr_scanned - nr_scanned, sc));
 }
