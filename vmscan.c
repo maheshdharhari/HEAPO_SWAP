@@ -3633,7 +3633,7 @@ static void pos_shrink_active_list(unsigned long nr_to_scan,
 	free_hot_cold_page_list(&l_hold, 1);
 }
 #endif
-
+/*
 #ifdef POS_SWAP
 // nyg_160411
 
@@ -3676,57 +3676,82 @@ static void pos_shrink_zone(struct zone *zone, struct scan_control *sc)
 	int nr_iter = 0;
 
 	do {
-		struct mem_cgroup *root = sc->target_mem_cgroup;
-		struct mem_cgroup_reclaim_cookie reclaim = {
-			.zone = zone,
-			.priority = sc->priority,
-		};
-		struct mem_cgroup *memcg;
-
 		nr_reclaimed = sc->nr_reclaimed;
 		nr_scanned = sc->nr_scanned;
 
-		memcg = mem_cgroup_iter(root, NULL, &reclaim);
-		do {
-			struct lruvec *lruvec;
+		struct lruvec *lruvec=zone->lruvec;
 
-			/* Get the Inactive and Active list of the cgroup*/
-			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
+		pos_shrink_lruvec(lruvec, sc);
 
-			/* Shrink Inactive and Active list */
-			pos_shrink_lruvec(lruvec, sc);
 
-			/*
-			 * Direct reclaim and kswapd have to scan all memory
-			 * cgroups to fulfill the overall scan target for the
-			 * zone.
-			 *
-			 * Limit reclaim, on the other hand, only cares about
-			 * nr_to_reclaim pages to be reclaimed and it will
-			 * retry with decreasing priority if one round over the
-			 * whole hierarchy is not sufficient.
-			 */
-			///nyg_160411
-			if(sc->nr_reclaimed >= sc->nr_to_reclaim) 
-			{
-				mem_cgroup_iter_break(root, memcg);
-				break;
-			}
-
-			/* Get the next cgroup of the zone */
-			memcg = mem_cgroup_iter(root, memcg, &reclaim);
-		} while (memcg);
+		///nyg_160411
+		if(sc->nr_reclaimed >= sc->nr_to_reclaim) 
+		{
+			mem_cgroup_iter_break(root, memcg);
+			break;
+		}
 
 		vmpressure(sc->gfp_mask, sc->target_mem_cgroup,
-			   sc->nr_scanned - nr_scanned,
-			   sc->nr_reclaimed - nr_reclaimed);
-		
+			sc->nr_scanned - nr_scanned,
+    	   	        sc->nr_reclaimed - nr_reclaimed);
 		nr_iter++;
 	} while (sc->nr_reclaimed < sc->nr_to_reclaim && nr_iter == 1);
 //	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
 //					 sc->nr_scanned - nr_scanned, sc));
 }
 #endif
+*/
+
+
+#ifdef POS_SWAP
+static void pos_shrink_zone_lruvec(struct zone *zone, struct scan_control *sc)
+{
+	unsigned long nr_reclaimed, nr_scanned;
+	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+	int nr_iter = 0;
+	unsigned long act_size;
+	// Inactive list Search size
+	unsigned long nr_to_scan = nr_to_reclaim - sc->nr_reclaimed;
+	struct blk_plug plug;
+	struct lruvec *lruvec=&zone->lruvec;
+
+	do {
+		nr_reclaimed = sc->nr_reclaimed;
+		nr_scanned = sc->nr_scanned;
+		
+		// Get the length of active list
+		act_size = get_lru_size(lruvec, LRU_ACTIVE_ANON);
+
+		blk_start_plug(&plug);
+
+		// Shrink Inactive list first.
+		nr_reclaimed += pos_shrink_inactive_list(nr_to_scan ,lruvec, sc, 0);
+	
+		// Balance the length between Inactive and Active list
+		if (inactive_list_is_low(lruvec, 1)){
+			pos_shrink_active_list(act_size, lruvec, sc, 1);
+		}
+	
+		blk_finish_plug(&plug);
+	
+		// Update scan control
+		sc->nr_reclaimed += nr_reclaimed;
+		throttle_vm_writeout(sc->gfp_mask);		
+	
+		///nyg_160411
+		if(sc->nr_reclaimed >= sc->nr_to_reclaim) 
+			break;
+
+		vmpressure(sc->gfp_mask, sc->target_mem_cgroup,
+			sc->nr_scanned - nr_scanned,
+    	   	        sc->nr_reclaimed - nr_reclaimed);
+		nr_iter++;
+	} while (sc->nr_reclaimed < sc->nr_to_reclaim && nr_iter == 1);
+//	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
+//					 sc->nr_scanned - nr_scanned, sc));
+}
+#endif
+
 
 #ifdef POS_SWAP
 struct page *
@@ -3745,14 +3770,13 @@ pos_alloc_page_slowpath(struct zone *zone, unsigned int order, int migratetype)
 		.target_mem_cgroup = NULL,
 	};
 
-	pos_shrink_zone(zone, &sc);
+	pos_shrink_zone_lruvec(zone, &sc);
 
 	///retry
 	page = pos_buffered_rmqueue(zone, order);
 
 	if(page == NULL)
 	{	
-		// pos_shrink_zone(zone, order, true);
 		warn_alloc_failed(GFP_KERNEL, order, NULL);
 		return page;
 	}
