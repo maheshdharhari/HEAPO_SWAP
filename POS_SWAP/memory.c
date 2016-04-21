@@ -3851,7 +3851,8 @@ static int handle_pte_fault(struct mm_struct *mm,
 				if((pfn=pos_get_swap_entry(address))!=POS_EMPTY)				
 				{
 					swp_entry_t pos_swap_entry = {.val = pfn};
-					pte = swp_entry_to_pte(pos_swap_entry);
+					*pte = swp_entry_to_pte(pos_swap_entry);
+					entry = *pte;
 					return do_swap_page(mm, vma, address,
 					pte, pmd, flags, entry);
 				}

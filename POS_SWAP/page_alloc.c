@@ -3827,7 +3827,7 @@ static int __build_all_zonelists(void *data)
 	for_each_online_node(nid) {
 		pg_data_t *pgdat = NODE_DATA(nid);
 
-		printk("mem_map : %d\n" , virt_to_pfn(pgdat -> node_mem_map));
+		printk("mem_map : %d\n" , PFN_DOWN(__pa(pgdat -> node_mem_map)));
 
 		printk("zone name : %s\n" , pgdat -> node_zones[0].name);
 		printk("zone manage pages : %d\n" , pgdat -> node_zones[0].managed_pages);

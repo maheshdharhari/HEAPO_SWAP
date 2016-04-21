@@ -20,7 +20,7 @@
 #include <asm/page.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
-
+#include <linux/uidgid.h>
 #include <linux/pos_namespace.h>
 
 
