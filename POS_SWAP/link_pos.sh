@@ -25,3 +25,6 @@ ln -s	../../POS_SWAP/pos_namespace.c		../linux-3.15/mm/pos_namespace.c
 ln -s	../../../POS_SWAP/mm.h			../linux-3.15/include/linux/mm.h
 ln -s	../../../POS_SWAP/pos.h			../linux-3.15/include/linux/pos.h
 ln -s	../../../POS_SWAP/pos_namespace.h	../linux-3.15/include/linux/pos_namespace.h
+
+# CP
+cp 	./.config				../linux-3.15/.config
