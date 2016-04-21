@@ -238,6 +238,8 @@ PAGEFLAG(Readahead, reclaim) TESTCLEARFLAG(Readahead, reclaim)
  * available at this point.
  */
 #define PageHighMem(__p) is_highmem(page_zone(__p))
+// POS (Cheolhee Lee)
+#define PageNVRAM(__p) is_nvram(page_zone(__p))
 #else
 PAGEFLAG_FALSE(HighMem)
 #endif

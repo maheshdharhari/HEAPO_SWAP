@@ -20,6 +20,9 @@
 #include <linux/list_lru.h>
 #include "internal.h"
 
+// POS (Cheolhee Lee)
+#include <linux/pos.h>
+
 /*
  * Inode locking rules:
  *
@@ -1389,8 +1392,11 @@ static void iput_final(struct inode *inode)
 
 	WARN_ON(inode->i_state & I_NEW);
 
-	if (op->drop_inode)
+	if (op->drop_inode){
 		drop = op->drop_inode(inode);
+		// POS (Cheolhee Lee)
+		pos_find_and_remove_pval_desc(inode);
+	}
 	else
 		drop = generic_drop_inode(inode);
 

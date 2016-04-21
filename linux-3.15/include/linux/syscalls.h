@@ -866,4 +866,14 @@ asmlinkage long sys_process_vm_writev(pid_t pid,
 asmlinkage long sys_kcmp(pid_t pid1, pid_t pid2, int type,
 			 unsigned long idx1, unsigned long idx2);
 asmlinkage long sys_finit_module(int fd, const char __user *uargs, int flags);
+
+// POS (Cheolhee Lee)
+asmlinkage long *sys_pos_create(char *name, unsigned long size);
+asmlinkage long sys_pos_delete(char *name);
+asmlinkage long *sys_pos_map(char *name);
+asmlinkage long sys_pos_unmap(char *name);
+asmlinkage long *sys_pos_seg_alloc(char *name, unsigned long len);
+asmlinkage long sys_pos_seg_free(char *name, void *addr, unsigned long len);
+asmlinkage long *sys_pos_is_mapped(char *name);
+asmlinkage long sys_pos_check_seg_addr(char *name, void *buffer);
 #endif

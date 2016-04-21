@@ -106,7 +106,9 @@ static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
 #ifndef CONFIG_BLK_DEV_XIP
 	gfp_flags |= __GFP_HIGHMEM;
 #endif
-	page = alloc_page(gfp_flags);
+	// POS (Cheolhee Lee)
+	page = pos_alloc_page(POS_USER_AREA);
+//	page = alloc_page(gfp_flags);
 	if (!page)
 		return NULL;
 

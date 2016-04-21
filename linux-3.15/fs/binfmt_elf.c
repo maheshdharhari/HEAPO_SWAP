@@ -38,6 +38,9 @@
 #include <asm/param.h>
 #include <asm/page.h>
 
+// POS (Cheolhee Lee)
+#include <linux/pos.h>
+
 #ifndef user_long_t
 #define user_long_t long
 #endif
@@ -368,6 +371,50 @@ static unsigned long elf_map(struct file *filep, unsigned long addr,
 
 #endif /* !elf_map */
 
+// POS (Cheolhee Lee)
+
+static unsigned long pos_elf_map(struct file *filep, unsigned long addr, struct elf_phdr *eppnt, int prot, int type)
+{
+	struct vm_area_struct *vma;
+	unsigned long vm_flags = 0;
+	unsigned long size = eppnt -> p_filesz + ELF_PAGEOFFSET(eppnt -> p_vaddr);
+	unsigned long off = eppnt -> p_offset - ELF_PAGEOFFSET(eppnt -> p_vaddr);
+	addr = ELF_PAGESTART(addr);
+	size = ELF_PAGEALIGN(size);
+
+	if (!size)
+		return addr;
+	
+	down_write(&current -> mm -> mmap_sem);
+	vm_flags = VM_READ|VM_WRITE|VM_SHARED|VM_POS_SECTION;
+	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
+	if (unlikely(vma == NULL))
+		return POS_ERROR;
+
+	vma -> vm_mm = current -> mm;
+	vma -> vm_start = addr;
+	vma -> vm_end = addr + size;
+
+	vma -> vm_flags = vm_flags;
+	vma -> vm_page_prot = vm_get_page_prot(vma -> vm_flags);
+
+	vma -> vm_ops = NULL;
+	vma -> vm_file = filep;
+	vma -> vm_pgoff = off >> PAGE_SHIFT;
+
+	if (unlikely(insert_vm_struct(current->mm, vma)))
+	{
+		kmem_cache_free(vm_area_cachep, vma);
+		return POS_ERROR;
+	}
+
+	current -> mm -> map_count++;
+	current -> mm -> total_vm += (vma -> vm_end - vma -> vm_start)>>PAGE_SHIFT;
+
+	up_write(&current -> mm -> mmap_sem);
+	return addr;
+}
+
 static unsigned long total_mapping_size(struct elf_phdr *cmds, int nr)
 {
 	int i, first_idx = -1, last_idx = -1;
@@ -589,6 +636,9 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		struct elfhdr elf_ex;
 		struct elfhdr interp_elf_ex;
 	} *loc;
+
+	// POS (Cheolhee Lee)
+	int cnt_load = 0;
 
 	loc = kmalloc(sizeof(*loc), GFP_KERNEL);
 	if (!loc) {
@@ -819,6 +869,14 @@ static int load_elf_binary(struct linux_binprm *bprm)
 
 		error = elf_map(bprm->file, load_bias + vaddr, elf_ppnt,
 				elf_prot, elf_flags, 0);
+
+		// POS (Cheolhee Lee)
+		cnt_load++;
+		if(cnt_load == 3 && elf_ppnt -> p_vaddr < 0xbf000000)
+			error = pos_elf_map(bprm -> file, load_bias + vaddr, elf_ppnt, elf_prot, elf_flags);
+		else
+			error = elf_map(bprm -> file, load_bias + vaddr, elf_ppnt, elf_prot, elf_flags, 0);
+
 		if (BAD_ADDR(error)) {
 			send_sig(SIGKILL, current, 0);
 			retval = IS_ERR((void *)error) ?
