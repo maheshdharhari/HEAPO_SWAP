@@ -9,6 +9,7 @@ unlink ../linux-3.15/mm/vmscan.c
 
 unlink ../linux-3.15/include/linux/mm.h
 unlink ../linux-3.15/include/linux/pos.h
+unlink ../linux-3.15/include/linux/pos_namespace.h
 
 # link
 ln -s	../../POS_SWAP/Makefile			../linux-3.15/mm/Makefile
@@ -21,3 +22,4 @@ ln -s	../../POS_SWAP/vmscan.c			../linux-3.15/mm/vmscan.c
 
 ln -s	../../../POS_SWAP/mm.h			../linux-3.15/include/linux/mm.h
 ln -s	../../../POS_SWAP/pos.h			../linux-3.15/include/linux/pos.h
+ln -s	../../../POS_SWAP/pos_namespace.h	../linux-3.15/include/linux/pos_namespace.h
