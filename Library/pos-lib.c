@@ -80,7 +80,9 @@ pos_lookup_mstate(char* name)
 	
 	while (name_entry) {
 
-		if (strcmp(name, name_entry->name) == 0) {		
+		if (strcmp(name, name_entry->name) == 0) {
+//TEMP
+			printf("[POS LIB] pos_lookup_mstate return %p\n", name_entry->mstate);	
 			return name_entry->mstate;
 		} else {
 			name_entry = name_entry->next;
@@ -204,7 +206,7 @@ pos_delete(char *name)
 		clear_init_key(ms);
 
 		//sys_pos_delete() 시스템 콜 호출
-		if (syscall(384, name) == 0) {
+		if (syscall(355, name) == 0) {
 			debug_printf("pos_delete() error!\n");
 			return 0;
 		}
@@ -251,7 +253,7 @@ pos_map(char* name)
 	strcpy(name_entry->name, name);
 
 	//sys_pos_map() 시스템 콜 호출
-	name_entry->mstate = (void *)syscall(385, name);
+	name_entry->mstate = (void *)syscall(356, name);
 	if (name_entry->mstate == (void *)0) {
 		debug_printf("pos_map() error!\n");
 		free(name_entry);
@@ -293,7 +295,7 @@ pos_unmap(char *name)
 		if (strcmp(name, name_entry->name) == 0) {
 
 			//sys_pos_unmap() 시스템 콜 호출
-			if (syscall(386, name) == 0) {
+			if (syscall(357, name) == 0) {
 				debug_printf("pos_unmap() error!\n");
 				return 0;
 			}
@@ -336,7 +338,7 @@ pos_seg_alloc(char *name, unsigned long len)
 			void *addr;
 
 			//sys_pos_seg_alloc() 시스템 콜 호출
-			addr = (void *)syscall(387, name, len);
+			addr = (void *)syscall(358, name, len);
 			if (addr == (void *)0) {
 				debug_printf("pos_seg_alloc() error!\n");
 			} else {
@@ -375,7 +377,7 @@ pos_seg_free(char *name, void *addr, unsigned long len)
 		if (strcmp(name, name_entry->name) == 0) {
 
 			//sys_pos_seg_free() 시스템 콜 호출
-			if (syscall(388, name, addr, len) ==0) {
+			if (syscall(359, name, addr, len) ==0) {
 				debug_printf("pos_seg_free() error!\n");
 			} else {
 #if DEBUG==1
@@ -405,7 +407,7 @@ pos_is_mapped(char *name)
 		return 0;
 
 	//sys_pos_is_mapped() 시스템 콜 호출
-	prime_seg = (void *)syscall(389, name);
+	prime_seg = (void *)syscall(360, name);
 	if (prime_seg == (void *)0) {
 		//printf("sys_pos_is_mapped() returns NULL\n");
 		//return NULL;
