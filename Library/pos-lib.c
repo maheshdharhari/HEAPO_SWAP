@@ -71,7 +71,7 @@ pos_lookup_mstate(char* name)
 {
 	struct pos_name_entry *name_entry;
 	int index;
-	
+
 	if (strlen(name) >= POS_NAME_LENGTH)
 		return NULL;
 
@@ -79,6 +79,7 @@ pos_lookup_mstate(char* name)
 	name_entry = name_table[index];
 	
 	while (name_entry) {
+
 		if (strcmp(name, name_entry->name) == 0) {		
 			return name_entry->mstate;
 		} else {
@@ -120,7 +121,6 @@ pos_create(char *name)
 	struct pos_name_entry *name_entry;
 	int index;
 
-
 	if (strlen(name) >= POS_NAME_LENGTH)
 		return 0;
 
@@ -145,7 +145,8 @@ pos_create(char *name)
 //#if CONSISTENCY == 1
 	//name_entry->mstate = (void *)syscall(299, name, 1024*1024); // Contiguous object whose size is about 1GB...
 //#else
-	name_entry->mstate = (void *)syscall(299, name, 4); // 4KB
+//	name_entry->mstate = (void *)syscall(383, name, 4); // 4KB
+	name_entry->mstate = (void *)syscall(354, name, 4); // 4KB
 //#endif
 	if (name_entry->mstate == (void *)0) {
 		debug_printf("pos_create() error!\n");
@@ -203,7 +204,7 @@ pos_delete(char *name)
 		clear_init_key(ms);
 
 		//sys_pos_delete() 시스템 콜 호출
-		if (syscall(300, name) == 0) {
+		if (syscall(384, name) == 0) {
 			debug_printf("pos_delete() error!\n");
 			return 0;
 		}
@@ -250,7 +251,7 @@ pos_map(char* name)
 	strcpy(name_entry->name, name);
 
 	//sys_pos_map() 시스템 콜 호출
-	name_entry->mstate = (void *)syscall(301, name);
+	name_entry->mstate = (void *)syscall(385, name);
 	if (name_entry->mstate == (void *)0) {
 		debug_printf("pos_map() error!\n");
 		free(name_entry);
@@ -292,7 +293,7 @@ pos_unmap(char *name)
 		if (strcmp(name, name_entry->name) == 0) {
 
 			//sys_pos_unmap() 시스템 콜 호출
-			if (syscall(302, name) == 0) {
+			if (syscall(386, name) == 0) {
 				debug_printf("pos_unmap() error!\n");
 				return 0;
 			}
@@ -329,13 +330,13 @@ pos_seg_alloc(char *name, unsigned long len)
 	//라이브러리에서 관리하는 name table 먼저 확인
 	index = pos_name_table_index(name);
 	name_entry = name_table[index];
-	
+
 	while (name_entry) {
 		if (strcmp(name, name_entry->name) == 0) {
 			void *addr;
 
 			//sys_pos_seg_alloc() 시스템 콜 호출
-			addr = (void *)syscall(303, name, len);
+			addr = (void *)syscall(387, name, len);
 			if (addr == (void *)0) {
 				debug_printf("pos_seg_alloc() error!\n");
 			} else {
@@ -374,7 +375,7 @@ pos_seg_free(char *name, void *addr, unsigned long len)
 		if (strcmp(name, name_entry->name) == 0) {
 
 			//sys_pos_seg_free() 시스템 콜 호출
-			if (syscall(304, name, addr, len) ==0) {
+			if (syscall(388, name, addr, len) ==0) {
 				debug_printf("pos_seg_free() error!\n");
 			} else {
 #if DEBUG==1
@@ -404,7 +405,7 @@ pos_is_mapped(char *name)
 		return 0;
 
 	//sys_pos_is_mapped() 시스템 콜 호출
-	prime_seg = (void *)syscall(305, name);
+	prime_seg = (void *)syscall(389, name);
 	if (prime_seg == (void *)0) {
 		//printf("sys_pos_is_mapped() returns NULL\n");
 		//return NULL;
