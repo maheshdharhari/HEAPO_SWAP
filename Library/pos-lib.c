@@ -149,6 +149,10 @@ pos_create(char *name)
 //#else
 //	name_entry->mstate = (void *)syscall(383, name, 4); // 4KB
 	name_entry->mstate = (void *)syscall(354, name, 4); // 4KB
+
+//TEMP
+	printf("[POS LIB] pos_create name_entry->mstate: %p\n", name_entry->mstate);
+
 //#endif
 	if (name_entry->mstate == (void *)0) {
 		debug_printf("pos_create() error!\n");

@@ -6,7 +6,8 @@
 void *kmap(struct page *page)
 {
 	might_sleep();
-	if (!PageHighMem(page))
+	//POS Jinsoo
+	if (!(PageHighMem(page) || PageNVRAM(page)))
 		return page_address(page);
 	return kmap_high(page);
 }
@@ -16,7 +17,8 @@ void kunmap(struct page *page)
 {
 	if (in_interrupt())
 		BUG();
-	if (!PageHighMem(page))
+	//POS Jinsoo
+	if (!(PageHighMem(page) || PageNVRAM(page)))
 		return;
 	kunmap_high(page);
 }
@@ -38,7 +40,8 @@ void *kmap_atomic_prot(struct page *page, pgprot_t prot)
 	/* even !CONFIG_PREEMPT needs this, for in_atomic in do_page_fault */
 	pagefault_disable();
 
-	if (!PageHighMem(page))
+	//POS Jinsoo
+	if (!(PageHighMem(page) || PageNVRAM(page)))
 		return page_address(page);
 
 	type = kmap_atomic_idx_push();
