@@ -857,6 +857,8 @@ int do_pos_area_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	if(!pte_none(*page_table))
 		goto release;
 
+	page_add_new_anon_rmap(page,vma,address);
+
 	set_pte_at(mm, address, page_table, entry);
 	update_mmu_cache(vma, address, page_table);
 unlock: 
