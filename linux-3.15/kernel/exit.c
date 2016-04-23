@@ -54,6 +54,9 @@
 #include <linux/writeback.h>
 #include <linux/shm.h>
 
+// POS (Cheolhee Lee)
+#include <linux/pos.h>
+
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/pgtable.h>
@@ -774,7 +777,9 @@ void do_exit(long code)
 	tsk->exit_code = code;
 	taskstats_exit(tsk, group_dead);
 
-	exit_mm(tsk);
+	// POS (Cheolhee Lee)
+        pos_process_exit();
+        exit_mm(tsk);
 
 	if (group_dead)
 		acct_process();
