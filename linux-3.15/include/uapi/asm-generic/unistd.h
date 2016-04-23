@@ -700,26 +700,8 @@ __SYSCALL(__NR_sched_getattr, sys_sched_getattr)
 #define __NR_renameat2 276
 __SYSCALL(__NR_renameat2, sys_renameat2)
 
-// POS (Cheolhee Lee)
-#define __NR_pos_create 277
-__SYSCALL(__NR_pos_create, sys_pos_create)
-#define __NR_pos_delete 278
-__SYSCALL(__NR_pos_delete, sys_pos_delete)
-#define __NR_pos_map 279
-__SYSCALL(__NR_pos_map, sys_pos_map)
-#define __NR_pos_unmap 280
-__SYSCALL(__NR_pos_unmap, sys_pos_unmap)
-#define __NR_pos_seg_alloc 281
-__SYSCALL(__NR_pos_seg_alloc, sys_pos_seg_alloc)
-#define __NR_pos_seg_free 282
-__SYSCALL(__NR_pos_seg_free, sys_pos_seg_free)
-#define __NR_pos_is_mapped 283
-__SYSCALL(__NR_pos_is_mapped, sys_pos_is_mapped)
-#define __NR_pos_check_seg_addr 284
-__SYSCALL(__NR_pos_check_seg_addr, sys_pos_check_seg_addr)
-
 #undef __NR_syscalls
-#define __NR_syscalls 285
+#define __NR_syscalls 277
 
 /*
  * All syscalls below here should go away really,

@@ -1008,7 +1008,8 @@ POS_WRITE_VAUE(NAME, (unsigned long *)&(M)->flags, (unsigned long)((M)->flags &~
 extern INTERNAL_SIZE_T global_max_fast;
 
 
-typedef unsigned long int uintptr_t;
+//typedef unsigned long int uintptr_t;
+typedef unsigned int uintptr_t;
 
 
 #include <string.h>
