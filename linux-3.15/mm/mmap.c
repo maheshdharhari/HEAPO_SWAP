@@ -43,6 +43,9 @@
 #include <asm/tlb.h>
 #include <asm/mmu_context.h>
 
+// POS (Cheolhee Lee)
+#include <linux/pos.h>
+
 #include "internal.h"
 
 #ifndef arch_mmap_check
@@ -965,6 +968,15 @@ can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
 	    is_mergeable_anon_vma(anon_vma, vma->anon_vma, vma)) {
 		pgoff_t vm_pglen;
 		vm_pglen = vma_pages(vma);
+
+		//POS (Cheolhee Lee)
+
+                if(vma -> vm_pgoff + vm_pglen == vm_pgoff || (vma -> vm_pgoff == -1 && vm_pgoff == -1))
+                        return 1;
+
+/*              if (vma->vm_pgoff + vm_pglen == vm_pgoff)
+                        return 1;*/
+
 		if (vma->vm_pgoff + vm_pglen == vm_pgoff)
 			return 1;
 	}
@@ -2558,7 +2570,22 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 	/* Fix up all other VM information */
 	remove_vma_list(mm, vma);
 
-	return 0;
+	// POS (cheolhee Lee)
+        if(vma -> vm_flags & VM_POS)
+        {
+                detach_vmas_to_be_unmapped(mm, vma, prev, end);
+                remove_vma_list(mm, vma);
+        }
+        else
+        {
+
+                detach_vmas_to_be_unmapped(mm, vma, prev, end);
+                unmap_region(mm, vma, prev, start, end);
+
+                /* Fix up all other VM information */
+                remove_vma_list(mm, vma);
+        }
+        return 0;
 }
 
 int vm_munmap(unsigned long start, size_t len)
