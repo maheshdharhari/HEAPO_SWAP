@@ -127,7 +127,17 @@ struct page *pos_alloc_page(int kind)
 }*/
 void pos_free_page(unsigned long pfn)
 {
-	__free_page(pfn_to_page(pfn));
+	// POS nyg
+	struct page *page = pfn_to_page(pfn);
+	if(PageActive(page)){
+		ClearPAgeActive(page);	
+	}
+	if(page_mapped(page)){
+		atomic_long_dec(&current->mm->nr_ptes);
+		atomic_dec(&page->_mapcount);
+	}
+
+	__free_page(page);
 }
 
 
@@ -840,6 +850,9 @@ int do_pos_area_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (unlikely(anon_vma_prepare(vma)))
 		goto oom;
 
+//TEMP
+	printk("[POS DEBUG] do_pos_area_fault: vma->start: %lu, end: %lu\n", vma->vm_start, vma->vm_end);
+
 	pfn = pos_find_and_alloc_pfn(pos_vma, address);
 	page = pfn_to_page(pfn);
 
@@ -863,6 +876,9 @@ int do_pos_area_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	update_mmu_cache(vma, address, page_table);
 unlock: 
 	pte_unmap_unlock(page_table, ptl);
+
+//TEMP
+	printk("[POS DEBUG] do_pos_area %05lx\n", page_to_pfn(page));
 
 	return 0;
 release:
@@ -1874,8 +1890,13 @@ int pos_map_vma(struct mm_struct *mm, unsigned long start, unsigned long end,
 	vma = find_vma_prev(mm, start, &prev);
 
 	vma = vma_merge(mm, prev, start, end, vm_flags, NULL, NULL, -1, NULL);
+//TEMP
+	printk("[POS DEBUG] pos_map_vma after merge \n");
+
 	if (vma)
 		return POS_NORMAL;
+//TEMP
+	printk("[POS DEBUG] pos_map_vma here??, start: %lu, end: %lu\n", start, end);
 
 	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
 	if (unlikely(vma == NULL))
