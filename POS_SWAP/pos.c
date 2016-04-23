@@ -837,9 +837,9 @@ int do_pos_area_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		goto setpte;
 	}
 */
-/*	if (unlikely(anon_vma_prepare(vma)))
+	if (unlikely(anon_vma_prepare(vma)))
 		goto oom;
-*/
+
 	pfn = pos_find_and_alloc_pfn(pos_vma, address);
 	page = pfn_to_page(pfn);
 
