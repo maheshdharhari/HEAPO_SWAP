@@ -130,7 +130,7 @@ void pos_free_page(unsigned long pfn)
 	// POS nyg
 	struct page *page = pfn_to_page(pfn);
 	if(PageActive(page)){
-		ClearPAgeActive(page);	
+		ClearPageActive(page);	
 	}
 	if(page_mapped(page)){
 		atomic_long_dec(&current->mm->nr_ptes);
