@@ -71,6 +71,9 @@
 
 #include "internal.h"
 
+// POS Jinsoo Yoo
+#include <linux/mm_inline.h>	// add_page_to_lru_list
+
 static struct kmem_cache *anon_vma_cachep;
 static struct kmem_cache *anon_vma_chain_cachep;
 
@@ -1033,7 +1036,16 @@ void page_add_new_anon_rmap(struct page *page,
 	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
 			hpage_nr_pages(page));
 	__page_set_anon_rmap(page, vma, address, 1);
-	if (!mlocked_vma_newpage(vma, page)) {
+
+	// POS Jinsoo Yoo
+	if(is_nvram(page_zone(page))){
+		enum lru_list lru = page_lru(page);
+		struct lruvec *lruvec = mem_cgroup_page_lruvec(page, page_zone(page));
+		SetPageLRU(page);
+		add_page_to_lru_list(page, lruvec, lru);
+	}
+	else if (!mlocked_vma_newpage(vma, page)) {
+//	if (!mlocked_vma_newpage(vma, page)) {
 		SetPageActive(page);
 		lru_cache_add(page);
 	} else

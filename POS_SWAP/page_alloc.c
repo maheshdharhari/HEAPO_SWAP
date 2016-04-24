@@ -645,8 +645,10 @@ static inline int free_pages_check(struct page *page)
 		return 1;
 	}
 	page_cpupid_reset_last(page);
+
 	if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
 		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+
 	return 0;
 }
 
@@ -1373,6 +1375,7 @@ void free_hot_cold_page(struct page *page, int cold)
 		return;
 
 	migratetype = get_pageblock_migratetype(page);
+
 	set_freepage_migratetype(page, migratetype);
 	local_irq_save(flags);
 	__count_vm_event(PGFREE);

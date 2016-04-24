@@ -44,6 +44,9 @@
 #include <linux/swap.h>
 #endif
 
+// POS Jinsoo Yoo
+#include <linux/mm_inline.h>	// del_from_page_lru_list
+
 struct pos_superblock* pos_sb;
 
 struct kmem_cache *pos_task_pid_struct_cachep;
@@ -118,17 +121,26 @@ struct page *pos_alloc_page(int kind)
 }
 
 
-/*void pos_free_page(unsigned long addr)
-{
-	free_page(addr);
-}*/
 void pos_free_page(unsigned long pfn)
 {
 	// POS nyg
 	struct page *page = pfn_to_page(pfn);
+
+	struct lruvec *lruvec;
+	struct zone *pagezone = page_zone(page);
+
+	if(PageLRU(page)){
+		lruvec = mem_cgroup_page_lruvec(page, pagezone);
+		VM_BUG_ON_PAGE(!PageLRU(page), page);
+		__ClearPageLRU(page);
+
+		del_page_from_lru_list(page, lruvec, page_off_lru(page));
+	}
+
 	if(PageActive(page)){
 		ClearPageActive(page);	
 	}
+
 	if(page_mapped(page)){
 		atomic_long_dec(&current->mm->nr_ptes);
 		atomic_dec(&page->_mapcount);
@@ -850,31 +862,35 @@ int do_pos_area_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	__SetPageUptodate(page);
 
+	// POS Jinsoo Yoo
+	if(mem_cgroup_charge_anon(page, mm, GFP_KERNEL))
+		goto release;
+
 	entry = mk_pte(page, vma -> vm_page_prot);
 	if(vma -> vm_flags & VM_WRITE)
 		entry = pte_mkwrite(pte_mkdirty(entry));
 	
 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
-
 	if(!pte_none(*page_table))
 		goto release;
 
+//TEMP
+//	inc_mm_counter(mm, MM_ANONPAGES);
+
 	page_add_new_anon_rmap(page,vma,address);
 
+setpte:
 	set_pte_at(mm, address, page_table, entry);
 	update_mmu_cache(vma, address, page_table);
 unlock: 
 	pte_unmap_unlock(page_table, ptl);
-
 	return 0;
 release:
 	mem_cgroup_uncharge_page(page);
 	page_cache_release(page);
 	goto unlock;
-
 oom:
 	return VM_FAULT_OOM;
-
 }
 EXPORT_SYMBOL(do_pos_area_fault);
 
@@ -2354,7 +2370,6 @@ asmlinkage int sys_pos_seg_free(char __user *name, void *addr, unsigned long len
 	struct task_struct *task;
 	struct mm_struct *mm;
 	char name_buf[POS_NAME_LENGTH];
-
 
 	//check whether address is page alinged address.
 	if (((unsigned long)addr&(PAGE_SIZE-1)) != 0)
