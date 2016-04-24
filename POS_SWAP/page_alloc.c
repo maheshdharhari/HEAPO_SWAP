@@ -1528,7 +1528,7 @@ struct page *pos_buffered_rmqueue(struct zone *zone, int order)
 	unsigned long flags;
 	struct page *page;
 	int cold = !!(__GFP_COLD);
-	
+
 	if(likely(order == 0)) {
 		struct per_cpu_pages *pcp;
 		struct list_head *list;
@@ -1536,9 +1536,10 @@ struct page *pos_buffered_rmqueue(struct zone *zone, int order)
 		local_irq_save(flags);
 		pcp = &this_cpu_ptr(zone->pageset) -> pcp;
 		list = &pcp->lists[2];
-		
+
 		if(list_empty(list)) {
 			pcp -> count += rmqueue_bulk(zone, 0, pcp->batch, list, 2, cold);
+
 			if(unlikely(list_empty(list)))
 				goto failed;
 		}
@@ -1547,6 +1548,7 @@ struct page *pos_buffered_rmqueue(struct zone *zone, int order)
 			page = list_entry(list->prev, struct page, lru);
 		else
 			page = list_entry(list -> next, struct page, lru);
+
 		list_del(&page->lru);
 		pcp -> count--;
 
