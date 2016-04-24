@@ -380,9 +380,6 @@ unsigned long pos_get_unmapped_area(unsigned long len, struct pos_vm_area **prev
 	unsigned long begin, end;
 	unsigned long addr;
 
-//TEMP
-	printk("[POS DEBUG] pos_get_unmapped_area is called. len: %lu\n", len);
-
 	sb = pos_get_sb();
 
 	begin = POS_AREA_START;
@@ -399,9 +396,6 @@ unsigned long pos_get_unmapped_area(unsigned long len, struct pos_vm_area **prev
 	if (addr < begin)
 		addr = begin;
 	start_addr = addr;
-
-//TEMP
-	printk("[POS DEBUG] begin: %lu, end: %lu, start_addr: %lu\n", begin, end, start_addr);
 
 full_search:
 	for (vma = pos_find_vma(sb, addr); ; vma = vma->vm_next) {
@@ -434,8 +428,6 @@ full_search:
 			*prev_vma = vma;
 	}
 
-//TEMP
-	printk("[POS DEBUG] pos_get_unmapped_area return: %lu\n", addr);
 	//if (IS_ERR_VALUE(addr))
 		return addr;
 	
@@ -850,9 +842,6 @@ int do_pos_area_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (unlikely(anon_vma_prepare(vma)))
 		goto oom;
 
-//TEMP
-	printk("[POS DEBUG] do_pos_area_fault: vma->start: %lu, end: %lu\n", vma->vm_start, vma->vm_end);
-
 	pfn = pos_find_and_alloc_pfn(pos_vma, address);
 	page = pfn_to_page(pfn);
 
@@ -876,9 +865,6 @@ int do_pos_area_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	update_mmu_cache(vma, address, page_table);
 unlock: 
 	pte_unmap_unlock(page_table, ptl);
-
-//TEMP
-	printk("[POS DEBUG] do_pos_area %05lx\n", page_to_pfn(page));
 
 	return 0;
 release:
@@ -1890,13 +1876,9 @@ int pos_map_vma(struct mm_struct *mm, unsigned long start, unsigned long end,
 	vma = find_vma_prev(mm, start, &prev);
 
 	vma = vma_merge(mm, prev, start, end, vm_flags, NULL, NULL, -1, NULL);
-//TEMP
-	printk("[POS DEBUG] pos_map_vma after merge \n");
 
 	if (vma)
 		return POS_NORMAL;
-//TEMP
-	printk("[POS DEBUG] pos_map_vma here??, start: %lu, end: %lu\n", start, end);
 
 	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
 	if (unlikely(vma == NULL))
@@ -1977,9 +1959,6 @@ asmlinkage void *sys_pos_create(char __user *name, unsigned long size)
 	int i;
 	fmode_t mode;
 
-//TEMP
-	printk("[POS DEBUG] sys_pos_create is called!\n");
-
 	mm = current->mm;
 	sb = pos_get_sb();
 
@@ -2020,9 +1999,6 @@ asmlinkage void *sys_pos_create(char __user *name, unsigned long size)
 
 	desc->prime_seg = pos_vma->vm_start = pos_get_unmapped_area(size*1024, NULL);
 
-//TEMP
-	printk("[POS DEBUG] sys_pos_create: desc->prime_seg: %p\n", desc->prime_seg);
-
 	pos_vma->vm_end = pos_vma->vm_start + size*1024;
 	pos_vma->nr_pages = 1;
 
@@ -2058,9 +2034,6 @@ asmlinkage void *sys_pos_create(char __user *name, unsigned long size)
 	pos_map_vma(mm, pos_vma->vm_start, pos_vma->vm_end, mode);
 
 	sb->ns_count++;
-
-//TEMP
-	printk("[POS DEBUG] sys_pos_create return: %p\n", desc->prime_seg);
 
 	return (void *)desc->prime_seg;
 }
@@ -2281,9 +2254,6 @@ asmlinkage void *sys_pos_seg_alloc(char __user *name, unsigned long len)
 
 	copy_from_user(name_buf, name, POS_NAME_LENGTH);
 
-//TEMP
-	printk("[POS DEBUG] sys_pos_seg_alloc is called for %s\n", name_buf);
-
 	if (!len)
 		return (void *)POS_ERROR;
 
@@ -2324,9 +2294,6 @@ asmlinkage void *sys_pos_seg_alloc(char __user *name, unsigned long len)
 	prev_vma = next_vma = NULL;
 	vm_start = pos_get_unmapped_area(len, &prev_vma);
 	vm_end = vm_start + len;
-
-//TEMP
-	printk("[POS DEBUG] in vm_start: %lu vm_end %lu\n", vm_start, vm_end);
 
 	//next_vma = pos_find_vma_prev(sb, vm_start, &prev_vma);
 	if (prev_vma)
