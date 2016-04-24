@@ -134,6 +134,9 @@ void pos_free_page(unsigned long pfn)
 		atomic_dec(&page->_mapcount);
 	}
 
+	// POS Jinsoo Yoo
+	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -1);
+
 	__free_page(page);
 }
 
