@@ -30,6 +30,9 @@
 #include <linux/limits.h>
 #include <linux/sched.h>
 #include <asm/elf.h>
+// POS SWAP
+#include <linux/pos.h>
+
 
 struct __read_mostly va_alignment va_align = {
 	.flags = -1,
@@ -91,7 +94,11 @@ static unsigned long mmap_base(void)
 	else if (gap > MAX_GAP)
 		gap = MAX_GAP;
 
-	return PAGE_ALIGN(TASK_SIZE - gap - mmap_rnd());
+
+// POS SWAP
+//	return PAGE_ALIGN(TASK_SIZE - gap - mmap_rnd());
+	return PAGE_ALIGN(TASK_SIZE - gap - POS_AREA_SIZE - mmap_rnd());
+
 }
 
 /*
