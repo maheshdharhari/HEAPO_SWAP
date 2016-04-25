@@ -1903,6 +1903,132 @@ static inline void init_zone_allows_reclaim(int nid)
 #endif	/* CONFIG_NUMA */
 
 /*
+ * POS SWAP
+ * pos get_page_from_freelist goes through the zonelist trying to allocate
+ * a page.
+ */
+static struct page *
+pos_get_page_from_freelist(struct zone* zone, gfp_t gfp_mask, unsigned int order,
+		int alloc_flags, int migratetype)
+{
+	struct zoneref *z;
+	struct page *page = NULL;
+	int classzone_idx;
+	struct zone *zone;
+	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
+	int zlc_active = 0;		/* set if using zonelist_cache */
+	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
+
+	classzone_idx = zone_idx(zone);
+	/*
+	 * Scan zonelist, looking for a zone with enough free.
+	 * See also __cpuset_node_allowed_softwall() comment in kernel/cpuset.c.
+	 */
+	unsigned long mark;
+
+	BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
+	if (unlikely(alloc_flags & ALLOC_NO_WATERMARKS))
+		goto try_this_zone;
+	/*
+	 * Distribute pages in proportion to the individual
+	 * zone size to ensure fair page aging.  The zone a
+	 * page was allocated in should have no effect on the
+	 * time the page has in memory before being reclaimed.
+	 */
+	if (alloc_flags & ALLOC_FAIR) {
+		if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0)
+			goto stop_try_this_zone;
+	}
+	/*
+	 * When allocating a page cache page for writing, we
+	 * want to get it from a zone that is within its dirty
+	 * limit, such that no single zone holds more than its
+	 * proportional share of globally allowed dirty pages.
+	 * The dirty limits take into account the zone's
+	 * lowmem reserves and high watermark so that kswapd
+	 * should be able to balance it without having to
+	 * write pages from its LRU list.
+	 *
+	 * This may look like it could increase pressure on
+	 * lower zones by failing allocations in higher zones
+	 * before they are full.  But the pages that do spill
+	 * over are limited as the lower zones are protected
+	 * by this very same mechanism.  It should not become
+	 * a practical burden to them.
+	 *
+	 * XXX: For now, allow allocations to potentially
+	 * exceed the per-zone dirty limit in the slowpath
+	 * (ALLOC_WMARK_LOW unset) before going into reclaim,
+	 * which is important when on a NUMA setup the allowed
+	 * zones are together not big enough to reach the
+	 * global limit.  The proper fix for these situations
+	 * will require awareness of zones in the
+	 * dirty-throttling and the flusher threads.
+	 */
+	if ((alloc_flags & ALLOC_WMARK_LOW) &&
+	    (gfp_mask & __GFP_WRITE) && !zone_dirty_ok(zone))
+		goto stop_try_this_zone;
+
+	mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
+	if (!zone_watermark_ok(zone, order, mark,
+			       classzone_idx, alloc_flags)) {
+		int ret;
+
+		if (zone_reclaim_mode == 0 ||
+		    !zone_allows_reclaim(preferred_zone, zone))
+			goto stop_try_this_zone;
+
+		/*
+		 * As we may have just activated ZLC, check if the first
+		 * eligible zone has failed zone_reclaim recently.
+		 */
+
+		ret = zone_reclaim(zone, gfp_mask, order);
+		
+		/* did we reclaim enough */
+		if (zone_watermark_ok(zone, order, mark,
+					classzone_idx, alloc_flags))
+			goto try_this_zone;
+
+		/*
+		 * Failed to reclaim enough to meet watermark.
+		 * Only mark the zone full if checking the min
+		 * watermark or if we failed to reclaim just
+		 * 1<<order pages or else the page allocator
+		 * fastpath will prematurely mark zones full
+		 * when the watermark is between the low and
+		 * min watermarks.
+		 */
+		if (((alloc_flags & ALLOC_WMARK_MASK) == ALLOC_WMARK_MIN) ||
+			ret == ZONE_RECLAIM_SOME)
+			goto stop_try_this_zone;
+		}
+
+try_this_zone:
+		page = buffered_rmqueue(zone, zone, order,
+						gfp_mask, migratetype);
+		if (page)
+			break;
+	}
+
+	if (page)
+		/*
+		 * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was
+		 * necessary to allocate the page. The expectation is
+		 * that the caller is taking steps that will free more
+		 * memory. The caller should avoid the page being used
+		 * for !PFMEMALLOC purposes.
+		 */
+		page->pfmemalloc = !!(alloc_flags & ALLOC_NO_WATERMARKS);
+
+stop_try_this_zone:
+
+	return page;
+}
+
+
+
+/*
  * get_page_from_freelist goes through the zonelist trying to allocate
  * a page.
  */
@@ -2693,7 +2819,6 @@ got_pg:
 struct page *
 __pos_alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, struct zone* zone)
 {
-	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
 	struct page *page = NULL;
 	int migratetype = allocflags_to_migratetype(gfp_mask);
 	unsigned int cpuset_mems_cookie;
@@ -2725,35 +2850,25 @@ retry_cpuset:
 #endif
 retry:
 	/* First allocation attempt */
-	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
-			zonelist, high_zoneidx, alloc_flags,
-			preferred_zone, migratetype);
+	page = pos_get_page_from_freelist(zone, gfp_mask|__GFP_HARDWALL, order,
+			 alloc_flags, migratetype);
 	if (unlikely(!page)) {
-		/*
-		 * The first pass makes sure allocations are spread
-		 * fairly within the local node.  However, the local
-		 * node might have free pages left after the fairness
-		 * batches are exhausted, and remote zones haven't
-		 * even been considered yet.  Try once more without
-		 * fairness, and include remote zones now, before
-		 * entering the slowpath and waking kswapd: prefer
-		 * spilling to a remote zone over swapping locally.
-		 */
+		/*	
 		if (alloc_flags & ALLOC_FAIR) {
 			reset_alloc_batches(zonelist, high_zoneidx,
 					    preferred_zone);
 			alloc_flags &= ~ALLOC_FAIR;
 			goto retry;
 		}
+		*/
 		/*
 		 * Runtime PM, block IO and its error handling path
 		 * can deadlock because I/O on the device might not
 		 * complete.
 		 */
 		gfp_mask = memalloc_noio_flags(gfp_mask);
-		page = __alloc_pages_slowpath(gfp_mask, order,
-				zonelist, high_zoneidx, nodemask,
-				preferred_zone, migratetype);
+		page = __pos_alloc_pages_slowpath(zone, gfp_mask,
+					order, migratetype);
 	}
 
 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
