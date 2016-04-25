@@ -108,12 +108,13 @@ struct page *pos_alloc_page(int kind)
 			zone = &pgdat -> node_zones[ZONE_NVRAM];
 		}
 #ifdef POS_SWAP
-		page = pos_buffered_rmqueue(zone, 0);
-		if(page == NULL)
-			return pos_alloc_page_slowpath(zone,0, 2); // movable 
+//TEMP
+//		page = pos_buffered_rmqueue(zone, 0);
+//		if(page == NULL)
+//			return pos_alloc_page_slowpath(zone,0, 2); // movable 
 		return page;
 #else
-		return pos_buffered_rmqueue(zone, 0);
+//		return pos_buffered_rmqueue(zone, 0);
 #endif
 	}
 	else if (POS_KERNEL_AREA)
@@ -142,13 +143,18 @@ void pos_free_page(unsigned long pfn)
 	}
 
 	if(page_mapped(page)){
+//TEMP
+		printk("[POS DEBUG] delete page %p , mapcount %d\n", page, page->_mapcount);
 		atomic_long_dec(&current->mm->nr_ptes);
 		atomic_dec(&page->_mapcount);
 	}
 
 	// POS Jinsoo Yoo
 	__mod_zone_page_state(pagezone, NR_ANON_PAGES, -1);
-	__mod_zone_page_state(pagezone, NR_FREE_PAGES, 1);
+//	__mod_zone_page_state(pagezone, NR_FREE_PAGES, 1);
+
+//TEMP
+	printk("[POS DEBUG] NR_FREE_PAGES: %d\n", zone_page_state(pagezone, NR_FREE_PAGES));
 
 	__free_page(page);
 }
