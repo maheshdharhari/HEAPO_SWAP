@@ -17,6 +17,7 @@ ln -s	../../POS_SWAP2/mempolicy.c		../linux-swap/mm/mempolicy.c
 # link header
 ln -s	../../../POS_SWAP2/pos.h		../linux-swap/include/linux/pos.h
 ln -s	../../../POS_SWAP2/pos_namespace.h	../linux-swap/include/linux/pos_namespace.h
+ln -s	../../../POS_SWAP2/gfp.h		../linux-swap/include/linux/gfp.h
 
 # link Makefile
 ln -s	../../POS_SWAP2/Makefile		../linux-swap/mm/Makefile
