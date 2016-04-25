@@ -3168,6 +3168,10 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
 		for (i = pgdat->nr_zones - 1; i >= 0; i--) {
 			struct zone *zone = pgdat->node_zones + i;
 
+			// POS SWAP
+			if(is_nvram(zone))
+				continue;
+
 			if (!populated_zone(zone))
 				continue;
 
@@ -3211,6 +3215,10 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
 		for (i = 0; i <= end_zone; i++) {
 			struct zone *zone = pgdat->node_zones + i;
 
+			// POS SWAP
+			if(is_nvram(zone))
+				continue;
+
 			if (!populated_zone(zone))
 				continue;
 
@@ -3246,6 +3254,10 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
 		 */
 		for (i = 0; i <= end_zone; i++) {
 			struct zone *zone = pgdat->node_zones + i;
+
+			// POS SWAP
+			if(is_nvram(zone))
+				continue;
 
 			if (!populated_zone(zone))
 				continue;
