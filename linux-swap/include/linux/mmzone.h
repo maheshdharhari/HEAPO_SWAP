@@ -308,6 +308,8 @@ enum zone_type {
 	 */
 	ZONE_HIGHMEM,
 #endif
+	// POS SWAP
+	ZONE_NVRAM,
 	ZONE_MOVABLE,
 	__MAX_NR_ZONES
 };
@@ -895,6 +897,14 @@ static inline int is_highmem(struct zone *zone)
 	return 0;
 #endif
 }
+
+// POS SWAP
+static inline int is_nvram(struct zone *zone)
+{
+        int zone_off = (char *)zone - (char *)zone->zone_pgdat->node_zones;
+        return zone_off == ZONE_NVRAM * sizeof(*zone);
+}
+
 
 /* These two functions are used to setup the per zone pages min values */
 struct ctl_table;

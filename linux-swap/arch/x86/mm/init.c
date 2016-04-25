@@ -18,6 +18,10 @@
 #include <asm/dma.h>		/* for MAX_DMA_PFN */
 #include <asm/microcode.h>
 
+// POS SWAP
+#define NVRAM_PAGE_START 262144	// 1 GByte
+#define NR_NVRAM_PAGES	131072	// 512 MByte
+
 #include "mm_internal.h"
 
 static unsigned long __initdata pgt_buf_start;
@@ -674,7 +678,12 @@ void __init zone_sizes_init(void)
 #endif
 	max_zone_pfns[ZONE_NORMAL]	= max_low_pfn;
 #ifdef CONFIG_HIGHMEM
-	max_zone_pfns[ZONE_HIGHMEM]	= max_pfn;
+//	max_zone_pfns[ZONE_HIGHMEM]	= max_pfn;
+	max_zone_pfns[ZONE_HIGHMEM]	= NVRAM_PAGE_START;
+	// POS SWAP
+	max_zone_pfns[ZONE_NVRAM] 	= NVRAM_PAGE_START + NR_NVRAM_PAGES; 
+#endif
+
 #endif
 
 	free_area_init_nodes(max_zone_pfns);
