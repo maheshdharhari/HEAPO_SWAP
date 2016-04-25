@@ -98,6 +98,9 @@
 
 #include "internal.h"
 
+// POS SWAP
+#include <linux/pos.h>
+
 /* Internal flags */
 #define MPOL_MF_DISCONTIG_OK (MPOL_MF_INTERNAL << 0)	/* Skip checks for continuous vmas */
 #define MPOL_MF_INVERT (MPOL_MF_INTERNAL << 1)		/* Invert check for nodemask */
@@ -2046,9 +2049,18 @@ retry_cpuset:
 
 		return page;
 	}
-	page = __alloc_pages_nodemask(gfp, order,
+
+// POS SWAP
+	if(POS_AREA_START <= addr && addr < POS_AREA_END){
+		struct zone* zone;
+		zone = &NODE_DATA(node)->node_zones[ZONE_NVRAM];
+		page = __pos_alloc_pages_nodemask(gfp, order, zone);
+	}
+	else{
+		page = __alloc_pages_nodemask(gfp, order,
 				      policy_zonelist(gfp, pol, node),
 				      policy_nodemask(gfp, pol));
+	}
 	if (unlikely(mpol_needs_cond_ref(pol)))
 		__mpol_put(pol);
 	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))

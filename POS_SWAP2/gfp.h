@@ -303,7 +303,7 @@ static inline void arch_alloc_page(struct page *page, int order) { }
 
 //POS SWAP
 struct page *
-__pos_alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order);
+__pos_alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, struct zone* zone);
 
 struct page *
 __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
