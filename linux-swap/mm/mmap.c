@@ -43,6 +43,9 @@
 #include <asm/tlb.h>
 #include <asm/mmu_context.h>
 
+// POS SWAP
+#include <linux/pos.h>
+
 #include "internal.h"
 
 #ifndef arch_mmap_check
@@ -965,7 +968,10 @@ can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
 	    is_mergeable_anon_vma(anon_vma, vma->anon_vma, vma)) {
 		pgoff_t vm_pglen;
 		vm_pglen = vma_pages(vma);
-		if (vma->vm_pgoff + vm_pglen == vm_pgoff)
+	
+		// POS SWAP
+		// if (vma->vm_pgoff + vm_pglen == vm_pgoff)
+		if(vma -> vm_pgoff + vm_pglen == vm_pgoff || (vma -> vm_pgoff == -1 && vm_pgoff == -1))
 			return 1;
 	}
 	return 0;
