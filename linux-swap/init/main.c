@@ -84,6 +84,9 @@
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
 
+// POS (Cheolhee Lee)
+#include <linux/pos.h>
+
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/smp.h>
 #endif
@@ -647,6 +650,9 @@ asmlinkage __visible void __init start_kernel(void)
 	}
 
 	ftrace_init();
+
+	// POS SWAP
+	pos_init();
 
 	/* Do the rest non-__init'ed, we're now alive */
 	rest_init();

@@ -54,6 +54,9 @@
 #include <linux/writeback.h>
 #include <linux/shm.h>
 
+// POS SWAP
+#include <linux/pos.h>
+
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/pgtable.h>
@@ -773,6 +776,9 @@ void do_exit(long code)
 
 	tsk->exit_code = code;
 	taskstats_exit(tsk, group_dead);
+
+	// POS SWAP
+        pos_process_exit();
 
 	exit_mm(tsk);
 
