@@ -130,7 +130,9 @@ void __init set_highmem_pages_init(void)
 	for_each_zone(zone) {
 		unsigned long zone_start_pfn, zone_end_pfn;
 
-		if (!is_highmem(zone))
+//		if (!is_highmem(zone))
+		// POS SWAP
+		if (!is_highmem(zone) && !is_nvram(zone))
 			continue;
 
 		zone_start_pfn = zone->zone_start_pfn;
