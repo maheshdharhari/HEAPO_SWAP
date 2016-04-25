@@ -1911,20 +1911,18 @@ static struct page *
 pos_get_page_from_freelist(struct zone* zone, gfp_t gfp_mask, unsigned int order,
 		int alloc_flags, int migratetype)
 {
-	struct zoneref *z;
 	struct page *page = NULL;
 	int classzone_idx;
-	struct zone *zone;
-	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
-	int zlc_active = 0;		/* set if using zonelist_cache */
-	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
+	//nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
+	//int zlc_active = 0;		/* set if using zonelist_cache */
+	//int did_zlc_setup = 0;		/* just call zlc_setup() one time */
 
+	unsigned long mark;
 	classzone_idx = zone_idx(zone);
 	/*
 	 * Scan zonelist, looking for a zone with enough free.
 	 * See also __cpuset_node_allowed_softwall() comment in kernel/cpuset.c.
 	 */
-	unsigned long mark;
 
 	BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
 	if (unlikely(alloc_flags & ALLOC_NO_WATERMARKS))
@@ -1975,7 +1973,7 @@ pos_get_page_from_freelist(struct zone* zone, gfp_t gfp_mask, unsigned int order
 		int ret;
 
 		if (zone_reclaim_mode == 0 ||
-		    !zone_allows_reclaim(preferred_zone, zone))
+		    !zone_allows_reclaim(zone, zone))
 			goto stop_try_this_zone;
 
 		/*
@@ -2002,13 +2000,10 @@ pos_get_page_from_freelist(struct zone* zone, gfp_t gfp_mask, unsigned int order
 		if (((alloc_flags & ALLOC_WMARK_MASK) == ALLOC_WMARK_MIN) ||
 			ret == ZONE_RECLAIM_SOME)
 			goto stop_try_this_zone;
-		}
 
 try_this_zone:
 		page = buffered_rmqueue(zone, zone, order,
 						gfp_mask, migratetype);
-		if (page)
-			break;
 	}
 
 	if (page)
@@ -2422,6 +2417,34 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 }
 #endif /* CONFIG_COMPACTION */
 
+/* Perform direct synchronous page reclaim */
+static int
+__pos_perform_reclaim(gfp_t gfp_mask, unsigned int order, struct zone* zone)
+{
+	struct reclaim_state reclaim_state;
+	int progress;
+
+	cond_resched();
+
+	/* We now go into synchronous reclaim */
+	cpuset_memory_pressure_bump();
+	current->flags |= PF_MEMALLOC;
+	lockdep_set_current_reclaim_state(gfp_mask);
+	reclaim_state.reclaimed_slab = 0;
+	current->reclaim_state = &reclaim_state;
+
+	progress = pos_try_to_free_pages(zone, order, gfp_mask);
+
+	current->reclaim_state = NULL;
+	lockdep_clear_current_reclaim_state();
+	current->flags &= ~PF_MEMALLOC;
+
+	cond_resched();
+
+	return progress;
+}
+
+
 /* The really slow allocator path where we enter direct reclaim */
 static inline struct page *
 __pos_alloc_pages_direct_reclaim(struct zone* zone, gfp_t gfp_mask, unsigned int order,
@@ -2451,34 +2474,6 @@ retry:
 
 	return page;
 }
-
-/* Perform direct synchronous page reclaim */
-static int
-__pos_perform_reclaim(gfp_t gfp_mask, unsigned int order, struct zone* zone)
-{
-	struct reclaim_state reclaim_state;
-	int progress;
-
-	cond_resched();
-
-	/* We now go into synchronous reclaim */
-	cpuset_memory_pressure_bump();
-	current->flags |= PF_MEMALLOC;
-	lockdep_set_current_reclaim_state(gfp_mask);
-	reclaim_state.reclaimed_slab = 0;
-	current->reclaim_state = &reclaim_state;
-
-	progress = pos_try_to_free_pages(zonelist, order, gfp_mask, nodemask);
-
-	current->reclaim_state = NULL;
-	lockdep_clear_current_reclaim_state();
-	current->flags &= ~PF_MEMALLOC;
-
-	cond_resched();
-
-	return progress;
-}
-
 
 
 /* Perform direct synchronous page reclaim */
@@ -2669,9 +2664,6 @@ __pos_alloc_pages_slowpath(struct zone* zone, gfp_t gfp_mask, unsigned int order
 	int alloc_flags;
 	unsigned long pages_reclaimed = 0;
 	unsigned long did_some_progress;
-	bool sync_migration = false;
-	bool deferred_compaction = false;
-	bool contended_compaction = false;
 
 	/*
 	 * In the slowpath, we sanity check order to avoid ever trying to
@@ -2695,10 +2687,6 @@ __pos_alloc_pages_slowpath(struct zone* zone, gfp_t gfp_mask, unsigned int order
 	if (IS_ENABLED(CONFIG_NUMA) &&
 	    (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
 		goto nopage;
-
-restart:
-	if (!(gfp_mask & __GFP_NO_KSWAPD))
-		wake_all_kswapds(order, zonelist, high_zoneidx, preferred_zone);
 
 	/*
 	 * OK, we're below the kswapd watermark and have kicked background
@@ -2752,7 +2740,7 @@ rebalance:
 	if (should_alloc_retry(gfp_mask, order, did_some_progress,
 						pages_reclaimed)) {
 		/* Wait for some write requests to complete then retry */
-		wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
+		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/50);
 		goto rebalance;
 	} 
 nopage:
@@ -3014,7 +3002,6 @@ retry_cpuset:
 	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
 		alloc_flags |= ALLOC_CMA;
 #endif
-retry:
 	/* First allocation attempt */
 	page = pos_get_page_from_freelist(zone, gfp_mask|__GFP_HARDWALL, order,
 			 alloc_flags, migratetype);
@@ -3039,7 +3026,6 @@ retry:
 
 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
 
-out:
 	/*
 	 * When updating a task's mems_allowed, it is possible to race with
 	 * parallel threads in such a way that an allocation can fail while
@@ -3053,7 +3039,7 @@ out:
 
 	return page;
 }
-EXPORT_SYMBOL(__alloc_pages_nodemask);
+EXPORT_SYMBOL(__pos_alloc_pages_nodemask);
 
 
 /*

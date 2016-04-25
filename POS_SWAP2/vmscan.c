@@ -2347,7 +2347,7 @@ static bool pos_shrink_zones(struct zone* zone, struct scan_control *sc)
 
 	shrink_zone(zone, sc);
 
-shrink_zones_out:
+stop_shrink_zones:
 	/*
 	 * Don't shrink slabs when reclaiming memory from over limit cgroups
 	 * but do shrink slab at least once when aborting reclaim for
@@ -2532,7 +2532,7 @@ static unsigned long pos_do_try_to_free_pages(struct zone* zone,
 		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
 				sc->priority);
 		sc->nr_scanned = 0;
-		aborted_reclaim = pos_shrink_zones(zonelist, sc);
+		aborted_reclaim = pos_shrink_zones(zone, sc);
 
 		total_scanned += sc->nr_scanned;
 		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
@@ -2784,7 +2784,7 @@ unsigned long pos_try_to_free_pages(struct zone* zone, int order, gfp_t gfp_mask
 				sc.may_writepage,
 				gfp_mask);
 
-	nr_reclaimed = pos_do_try_to_free_pages(zonelist, &sc);
+	nr_reclaimed = pos_do_try_to_free_pages(zone, &sc);
 
 	trace_mm_vmscan_direct_reclaim_end(nr_reclaimed);
 
