@@ -127,6 +127,8 @@ void pos_free_page(unsigned long pfn)
 	// POS nyg
 	struct page *page = pfn_to_page(pfn);
 
+	free_page_and_swap_cache(page);
+/*
 	struct lruvec *lruvec;
 	struct zone *pagezone = page_zone(page);
 
@@ -155,7 +157,7 @@ void pos_free_page(unsigned long pfn)
 
 //TEMP
 	printk("[POS DEBUG] NR_FREE_PAGES: %d\n", zone_page_state(pagezone, NR_FREE_PAGES));
-
+*/
 	__free_page(page);
 }
 
@@ -583,6 +585,48 @@ int pos_pages_to_level(unsigned long nr_pages)
 	
 	return level;
 }
+
+// POS SWAP
+unsigned long pos_find_pfn(struct pos_vm_area *vma, unsigned long addr)
+{
+	struct pos_map_array *map_array;
+	unsigned long pages;
+	unsigned long sublevel_pages;
+	int level;
+	int index;
+	struct pos_superblock *sb;
+
+	sb = pos_get_sb();
+
+	pages = (addr - vma->vm_start) >> PAGE_SHIFT;
+	map_array = vma->map_array;
+	level = map_array->level;
+	
+	while (level > 1) {
+		
+		sublevel_pages = pos_level_to_pages(level-1);
+
+		index = pages/sublevel_pages;
+		
+		if (map_array->pfns[index] == POS_EMPTY) {
+			return POS_EMPTY;	
+		}
+
+		level--;
+		pages = pages - (index*sublevel_pages);
+		map_array = (struct pos_map_array *)map_array->pfns[index];
+	}
+
+	// Level 1
+	index = pages;
+
+	if (map_array->pfns[index] == 0) {
+		return POS_EMPTY;
+	} else {
+		return map_array->pfns[index];
+	}
+}
+
 
 
 //addr를 포함한 page와 맵핑된 page frame의 number를 반환함
