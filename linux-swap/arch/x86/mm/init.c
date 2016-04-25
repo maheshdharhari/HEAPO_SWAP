@@ -684,7 +684,6 @@ void __init zone_sizes_init(void)
 	max_zone_pfns[ZONE_NVRAM] 	= NVRAM_PAGE_START + NR_NVRAM_PAGES; 
 #endif
 
-#endif
 
 	free_area_init_nodes(max_zone_pfns);
 }

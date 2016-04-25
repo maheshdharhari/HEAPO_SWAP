@@ -3267,7 +3267,9 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
 				int nr_zones)
 {
 	struct zone *zone;
-	enum zone_type zone_type = MAX_NR_ZONES;
+// TEMP
+//	enum zone_type zone_type = MAX_NR_ZONES;
+	enum zone_type zone_type = MAX_NR_ZONES - 2;
 
 	do {
 		zone_type--;
