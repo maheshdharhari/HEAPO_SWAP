@@ -3510,7 +3510,10 @@ static void build_zonelists_in_zone_order(pg_data_t *pgdat, int nr_nodes)
 
 	zonelist = &pgdat->node_zonelists[0];
 	pos = 0;
-	for (zone_type = MAX_NR_ZONES - 1; zone_type >= 0; zone_type--) {
+
+// POS SWAP
+//	for (zone_type = MAX_NR_ZONES - 1; zone_type >= 0; zone_type--) {
+	for (zone_type = MAX_NR_ZONES - 2; zone_type >= 0; zone_type--) {
 		for (j = 0; j < nr_nodes; j++) {
 			node = node_order[j];
 			z = &NODE_DATA(node)->node_zones[zone_type];
