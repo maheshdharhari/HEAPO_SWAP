@@ -2288,6 +2288,92 @@ static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
 	return watermark_ok;
 }
 
+static bool pos_shrink_zones(struct zone* zone, struct scan_control *sc)
+{
+	unsigned long nr_soft_reclaimed;
+	unsigned long nr_soft_scanned;
+	unsigned long lru_pages = 0;
+	bool aborted_reclaim = false;
+	struct reclaim_state *reclaim_state = current->reclaim_state;
+	gfp_t orig_mask;
+	struct shrink_control shrink = {
+		.gfp_mask = sc->gfp_mask,
+	};
+	//enum zone_type requested_highidx = gfp_zone(sc->gfp_mask);
+
+	/*
+	 * If the number of buffer_heads in the machine exceeds the maximum
+	 * allowed level, force direct reclaim to scan the highmem zone as
+	 * highmem pages could be pinning lowmem pages storing buffer_heads
+	 */
+	orig_mask = sc->gfp_mask;
+	if (buffer_heads_over_limit)
+		sc->gfp_mask |= __GFP_HIGHMEM;
+
+	nodes_clear(shrink.nodes_to_scan);
+
+	if (!populated_zone(zone))
+		goto stop_shrink_zones;
+
+	/*
+	 * Take care memory controller reclaiming has small influence
+	 * to global LRU.
+	 */
+	if (global_reclaim(sc)) {
+		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+			goto stop_shrink_zones;
+		
+		lru_pages += zone_reclaimable_pages(zone);
+		node_set(zone_to_nid(zone), shrink.nodes_to_scan);
+
+		if (sc->priority != DEF_PRIORITY &&
+		    !zone_reclaimable(zone))
+			goto stop_shrink_zones;
+
+		/*
+		 * This steals pages from memory cgroups over softlimit
+		 * and returns the number of reclaimed pages and
+		 * scanned pages. This works for global memory pressure
+		 * and balancing, not for a memcg's limit.
+		 */
+		nr_soft_scanned = 0;
+		nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
+					sc->order, sc->gfp_mask,
+					&nr_soft_scanned);
+		sc->nr_reclaimed += nr_soft_reclaimed;
+		sc->nr_scanned += nr_soft_scanned;
+		/* need some check for avoid more shrink_zone() */
+	}
+
+	shrink_zone(zone, sc);
+
+shrink_zones_out:
+	/*
+	 * Don't shrink slabs when reclaiming memory from over limit cgroups
+	 * but do shrink slab at least once when aborting reclaim for
+	 * compaction to avoid unevenly scanning file/anon LRU pages over slab
+	 * pages.
+	 */
+	if (global_reclaim(sc)) {
+		shrink_slab(&shrink, sc->nr_scanned, lru_pages);
+		if (reclaim_state) {
+			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+			reclaim_state->reclaimed_slab = 0;
+		}
+	}
+
+	/*
+	 * Restore to original mask to avoid the impact on the caller if we
+	 * promoted it to __GFP_HIGHMEM.
+	 */
+	sc->gfp_mask = orig_mask;
+
+	return aborted_reclaim;
+}
+
+
+
+
 /*
  * This is the direct reclaim path, for page-allocating processes.  We only
  * try to reclaim pages from zones which will satisfy the caller's allocation
@@ -2429,6 +2515,73 @@ static bool all_unreclaimable(struct zonelist *zonelist,
 
 	return true;
 }
+
+static unsigned long pos_do_try_to_free_pages(struct zone* zone,
+					  struct scan_control *sc)
+{
+	unsigned long total_scanned = 0;
+	unsigned long writeback_threshold;
+	bool aborted_reclaim;
+
+	delayacct_freepages_start();
+
+	if (global_reclaim(sc))
+		count_vm_event(ALLOCSTALL);
+
+	do {
+		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
+				sc->priority);
+		sc->nr_scanned = 0;
+		aborted_reclaim = pos_shrink_zones(zonelist, sc);
+
+		total_scanned += sc->nr_scanned;
+		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
+			goto out;
+
+		/*
+		 * If we're getting trouble reclaiming, start doing
+		 * writepage even in laptop mode.
+		 */
+		if (sc->priority < DEF_PRIORITY - 2)
+			sc->may_writepage = 1;
+
+		/*
+		 * Try to write back as many pages as we just scanned.  This
+		 * tends to cause slow streaming writers to write data to the
+		 * disk smoothly, at the dirtying rate, which is nice.   But
+		 * that's undesirable in laptop mode, where we *want* lumpy
+		 * writeout.  So in laptop mode, write out the whole world.
+		 */
+		writeback_threshold = sc->nr_to_reclaim + sc->nr_to_reclaim / 2;
+		if (total_scanned > writeback_threshold) {
+			wakeup_flusher_threads(laptop_mode ? 0 : total_scanned,
+						WB_REASON_TRY_TO_FREE_PAGES);
+			sc->may_writepage = 1;
+		}
+	} while (--sc->priority >= 0 && !aborted_reclaim);
+
+out:
+	delayacct_freepages_end();
+
+	if (sc->nr_reclaimed)
+		return sc->nr_reclaimed;
+
+	/*
+	 * As hibernation is going on, kswapd is freezed so that it can't mark
+	 * the zone into all_unreclaimable. Thus bypassing all_unreclaimable
+	 * check.
+	 */
+	if (oom_killer_disabled)
+		return 0;
+
+	/* Aborted reclaim to try compaction? don't OOM, then */
+	if (aborted_reclaim)
+		return 1;
+
+	return 0;
+}
+
+
 
 /*
  * This is the main entry point to direct page reclaim.
@@ -2609,6 +2762,35 @@ check_pending:
 out:
 	return false;
 }
+
+// POS SWAP
+unsigned long pos_try_to_free_pages(struct zone* zone, int order, gfp_t gfp_mask)
+{
+	unsigned long nr_reclaimed;
+	struct scan_control sc = {
+		.gfp_mask = (gfp_mask = memalloc_noio_flags(gfp_mask)),
+		.may_writepage = !laptop_mode,
+		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+		.may_unmap = 1,
+		.may_swap = 1,
+		.order = order,
+		.priority = DEF_PRIORITY,
+		.target_mem_cgroup = NULL,
+		.nodemask = NULL,
+//		.nodemask = nodemask,
+	};
+
+	trace_mm_vmscan_direct_reclaim_begin(order,
+				sc.may_writepage,
+				gfp_mask);
+
+	nr_reclaimed = pos_do_try_to_free_pages(zonelist, &sc);
+
+	trace_mm_vmscan_direct_reclaim_end(nr_reclaimed);
+
+	return nr_reclaimed;
+}
+
 
 unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 				gfp_t gfp_mask, nodemask_t *nodemask)

@@ -340,6 +340,9 @@ static inline void lru_cache_add_file(struct page *page)
 }
 
 /* linux/mm/vmscan.c */
+// POS SWAP
+extern unsigned long pos_try_to_free_pages(struct zone *zone, int order,
+						gfp_t gfp_mask);
 extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 					gfp_t gfp_mask, nodemask_t *mask);
 extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
