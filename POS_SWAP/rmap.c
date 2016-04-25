@@ -1042,6 +1042,9 @@ void page_add_new_anon_rmap(struct page *page,
 		enum lru_list lru = page_lru(page);
 		struct lruvec *lruvec = mem_cgroup_page_lruvec(page, page_zone(page));
 		SetPageLRU(page);
+// nyg
+		SetPageActive(page);
+//
 		add_page_to_lru_list(page, lruvec, lru);
 	}
 	else if (!mlocked_vma_newpage(vma, page)) {
