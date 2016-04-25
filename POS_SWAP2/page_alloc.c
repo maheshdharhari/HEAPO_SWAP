@@ -2422,6 +2422,65 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 }
 #endif /* CONFIG_COMPACTION */
 
+/* The really slow allocator path where we enter direct reclaim */
+static inline struct page *
+__pos_alloc_pages_direct_reclaim(struct zone* zone, gfp_t gfp_mask, unsigned int order,
+	int alloc_flags, int migratetype, unsigned long *did_some_progress)
+{
+	struct page *page = NULL;
+	bool drained = false;
+
+	*did_some_progress = __pos_perform_reclaim(gfp_mask, order, zone);
+	if (unlikely(!(*did_some_progress)))
+		return NULL;
+
+retry:
+	page = pos_get_page_from_freelist(zone, gfp_mask, order,
+					alloc_flags & ~ALLOC_NO_WATERMARKS,
+					migratetype);
+
+	/*
+	 * If an allocation failed after direct reclaim, it could be because
+	 * pages are pinned on the per-cpu lists. Drain them and try again
+	 */
+	if (!page && !drained) {
+		drain_all_pages();
+		drained = true;
+		goto retry;
+	}
+
+	return page;
+}
+
+/* Perform direct synchronous page reclaim */
+static int
+__pos_perform_reclaim(gfp_t gfp_mask, unsigned int order, struct zone* zone)
+{
+	struct reclaim_state reclaim_state;
+	int progress;
+
+	cond_resched();
+
+	/* We now go into synchronous reclaim */
+	cpuset_memory_pressure_bump();
+	current->flags |= PF_MEMALLOC;
+	lockdep_set_current_reclaim_state(gfp_mask);
+	reclaim_state.reclaimed_slab = 0;
+	current->reclaim_state = &reclaim_state;
+
+	progress = pos_try_to_free_pages(zonelist, order, gfp_mask, nodemask);
+
+	current->reclaim_state = NULL;
+	lockdep_clear_current_reclaim_state();
+	current->flags &= ~PF_MEMALLOC;
+
+	cond_resched();
+
+	return progress;
+}
+
+
+
 /* Perform direct synchronous page reclaim */
 static int
 __perform_reclaim(gfp_t gfp_mask, unsigned int order, struct zonelist *zonelist,
@@ -2599,6 +2658,113 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
 {
 	return !!(gfp_to_alloc_flags(gfp_mask) & ALLOC_NO_WATERMARKS);
 }
+
+
+static inline struct page *
+__pos_alloc_pages_slowpath(struct zone* zone, gfp_t gfp_mask, unsigned int order,
+			int migratetype)
+{
+	const gfp_t wait = gfp_mask & __GFP_WAIT;
+	struct page *page = NULL;
+	int alloc_flags;
+	unsigned long pages_reclaimed = 0;
+	unsigned long did_some_progress;
+	bool sync_migration = false;
+	bool deferred_compaction = false;
+	bool contended_compaction = false;
+
+	/*
+	 * In the slowpath, we sanity check order to avoid ever trying to
+	 * reclaim >= MAX_ORDER areas which will never succeed. Callers may
+	 * be using allocators in order of preference for an area that is
+	 * too large.
+	 */
+	if (order >= MAX_ORDER) {
+		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
+		return NULL;
+	}
+
+	/*
+	 * GFP_THISNODE (meaning __GFP_THISNODE, __GFP_NORETRY and
+	 * __GFP_NOWARN set) should not cause reclaim since the subsystem
+	 * (f.e. slab) using GFP_THISNODE may choose to trigger reclaim
+	 * using a larger set of nodes after it has established that the
+	 * allowed per node queues are empty and that nodes are
+	 * over allocated.
+	 */
+	if (IS_ENABLED(CONFIG_NUMA) &&
+	    (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
+		goto nopage;
+
+restart:
+	if (!(gfp_mask & __GFP_NO_KSWAPD))
+		wake_all_kswapds(order, zonelist, high_zoneidx, preferred_zone);
+
+	/*
+	 * OK, we're below the kswapd watermark and have kicked background
+	 * reclaim. Now things get more complex, so set up alloc_flags according
+	 * to how we want to proceed.
+	 */
+	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+
+rebalance:
+	/* This is the last chance, in general, before the goto nopage. */
+	page = pos_get_page_from_freelist(zone, gfp_mask, order, 
+			alloc_flags & ~ALLOC_NO_WATERMARKS, migratetype);
+	if (page)
+		goto got_pg;
+
+	/* Atomic allocations - we can't balance anything */
+	if (!wait) {
+		/*
+		 * All existing users of the deprecated __GFP_NOFAIL are
+		 * blockable, so warn of any new users that actually allow this
+		 * type of allocation to fail.
+		 */
+		WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
+		goto nopage;
+	}
+
+	/* Avoid recursion of direct reclaim */
+	if (current->flags & PF_MEMALLOC)
+		goto nopage;
+
+	/* Avoid allocations with no watermarks from looping endlessly */
+	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+		goto nopage;
+
+	/* Try direct reclaim and then allocating */
+	page = __pos_alloc_pages_direct_reclaim(zone, gfp_mask, order,
+					alloc_flags, migratetype, &did_some_progress);
+	if (page)
+		goto got_pg;
+
+	/*
+	 * If we failed to make any progress reclaiming, then we are
+	 * running out of options and have to consider going OOM
+	 */
+	if (!did_some_progress) {
+		goto nopage;
+	}
+
+	/* Check if we should retry the allocation */
+	pages_reclaimed += did_some_progress;
+	if (should_alloc_retry(gfp_mask, order, did_some_progress,
+						pages_reclaimed)) {
+		/* Wait for some write requests to complete then retry */
+		wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
+		goto rebalance;
+	} 
+nopage:
+	warn_alloc_failed(gfp_mask, order, NULL);
+	return page;
+got_pg:
+	if (kmemcheck_enabled)
+		kmemcheck_pagealloc_alloc(page, order, gfp_mask);
+
+	return page;
+}
+
 
 static inline struct page *
 __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
