@@ -1,5 +1,6 @@
 # unlink
 unlink ../linux-swap/mm/pos.c
+unlink ../linux-swap/mm/mempolicy.c
 unlink ../linux-swap/mm/pos_namespace.c
 
 unlink ../linux-swap/include/linux/pos.h
@@ -11,6 +12,7 @@ unlink ../linux-swap/mm/Makefile
 ln -s	../../POS_SWAP2/pos.c			../linux-swap/mm/pos.c
 ln -s	../../POS_SWAP2/pos_namespace.c		../linux-swap/mm/pos_namespace.c
 ln -s	../../POS_SWAP2/memory.c		../linux-swap/mm/memory.c
+ln -s	../../POS_SWAP2/mempolicy.c		../linux-swap/mm/mempolicy.c
 
 # link header
 ln -s	../../../POS_SWAP2/pos.h		../linux-swap/include/linux/pos.h
