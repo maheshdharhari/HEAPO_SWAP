@@ -162,7 +162,9 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 		goto bottomup;
 
 	/* requesting a specific address */
-	if (addr) {
+// POS SWAP
+//	if (addr) {
+	if (addr && addr < mm->mmap_base) {
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr &&
