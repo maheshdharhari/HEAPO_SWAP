@@ -232,7 +232,7 @@ struct pos_ns_record *pos_ns_search(struct pos_ns_trie_node *root,
 	//end_tick = get_cycles();
 	//printk("[POS] lookup time (ticks): %llu\n", end_tick-start_tick);
 
-	printk("----------------end-----------------\n");
+	//printk("----------------end-----------------\n");
 	// empty-string or NULL
 	//if (depth == str_length+1) {
 	record = (struct pos_ns_record *)trie_node->ptrs[0];
