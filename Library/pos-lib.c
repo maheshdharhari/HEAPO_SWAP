@@ -81,8 +81,6 @@ pos_lookup_mstate(char* name)
 	while (name_entry) {
 
 		if (strcmp(name, name_entry->name) == 0) {
-//TEMP
-			printf("[POS LIB] pos_lookup_mstate return %p\n", name_entry->mstate);	
 			return name_entry->mstate;
 		} else {
 			name_entry = name_entry->next;
@@ -150,9 +148,11 @@ pos_create(char *name)
 //	name_entry->mstate = (void *)syscall(383, name, 4); // 4KB
 	name_entry->mstate = (void *)syscall(354, name, 4); // 4KB
 
-//TEMP
-	printf("[POS LIB] pos_create name_entry->mstate: %p\n", name_entry->mstate);
-
+	if(name_entry->mstate == NULL){
+		printf("[POS LIB] sys_pos_create fail: name_entry->mstate has NULL pointer\n");
+		free(name_entry);
+		return 0;
+	}
 //#endif
 	if (name_entry->mstate == (void *)0) {
 		debug_printf("pos_create() error!\n");
