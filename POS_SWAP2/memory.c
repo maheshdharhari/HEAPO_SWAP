@@ -69,6 +69,9 @@
 #include <asm/tlbflush.h>
 #include <asm/pgtable.h>
 
+// POS SWAP
+#include <linux/pos.h>
+
 #include "internal.h"
 
 #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS

@@ -309,6 +309,11 @@ struct page *
 __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 		       struct zonelist *zonelist, nodemask_t *nodemask);
 
+// POS SWAP
+struct page *
+pos_alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+                unsigned long addr, int node);
+
 static inline struct page *
 __alloc_pages(gfp_t gfp_mask, unsigned int order,
 		struct zonelist *zonelist)
@@ -346,15 +351,11 @@ extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
 			struct vm_area_struct *vma, unsigned long addr,
 			int node);
 #else
-// POS SWAP
-extern struct page * pos_alloc_pages_vma(gfp_t gfp, int order, 
-			struct vm_area_struct *vma, unsigned long addr, int node);
 
 #define alloc_pages(gfp_mask, order) \
 		alloc_pages_node(numa_node_id(), gfp_mask, order)
 // POS SWAP
-//#define alloc_pages_vma(gfp_mask, order, vma, addr, node)	\
-	alloc_pages(gfp_mask, order)
+//#define alloc_pages_vma(gfp_mask, order, vma, addr, node) alloc_pages(gfp_mask, order)
 #define alloc_pages_vma(gfp_mask, order, vma, addr, node)	\
 	pos_alloc_pages_vma(gfp_mask, order, vma, addr, node)
 #endif

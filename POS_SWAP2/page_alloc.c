@@ -62,6 +62,9 @@
 #include <linux/hugetlb.h>
 #include <linux/sched/rt.h>
 
+// POS SWAP
+#include <linux/pos.h>
+
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -3041,6 +3044,18 @@ retry_cpuset:
 }
 EXPORT_SYMBOL(__pos_alloc_pages_nodemask);
 
+// POS SWAP
+struct page *
+pos_alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+                unsigned long addr, int node)
+{
+        if(POS_AREA_START < addr && addr < POS_AREA_END){
+                struct zone* zone;
+                zone = &NODE_DATA(node)->node_zones[ZONE_NVRAM];
+                return __pos_alloc_pages_nodemask(gfp, order, zone);
+        }
+        return alloc_pages(gfp, order);
+}
 
 /*
  * This is the 'heart' of the zoned buddy allocator.
