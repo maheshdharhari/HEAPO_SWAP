@@ -2037,6 +2037,8 @@ int pos_map_vma(struct mm_struct *mm, unsigned long start, unsigned long end,
 		if(pgprot_val(pprot) == pgprot_val(pgprot_noncached(pprot)))
 			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	}
+// POS SWAP
+	vma->vm_ops = NULL;
 
 	if (unlikely(insert_vm_struct(mm, vma))) {
 		kmem_cache_free(vm_area_cachep, vma);

@@ -3281,14 +3281,17 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (check_stack_guard_page(vma, address) < 0)
 		return VM_FAULT_SIGBUS;
 
-	/* Use the zero-page for reads */
-	if (!(flags & FAULT_FLAG_WRITE)) {
-		entry = pte_mkspecial(pfn_pte(my_zero_pfn(address),
-						vma->vm_page_prot));
-		page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
-		if (!pte_none(*page_table))
-			goto unlock;
-		goto setpte;
+	// POS SWAP
+	if (!(vma->vm_flags & VM_POS)){
+		/* Use the zero-page for reads */
+		if (!(flags & FAULT_FLAG_WRITE)) {
+			entry = pte_mkspecial(pfn_pte(my_zero_pfn(address),
+							vma->vm_page_prot));
+			page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
+			if (!pte_none(*page_table))
+				goto unlock;
+			goto setpte;
+		}
 	}
 
 	/* Allocate our own private page. */
