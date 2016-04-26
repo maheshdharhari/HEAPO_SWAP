@@ -156,7 +156,7 @@ void pos_free_page(unsigned long pfn)
 //TEMP
 	printk("[POS DEBUG] NR_FREE_PAGES: %d\n", zone_page_state(pagezone, NR_FREE_PAGES));
 */
-	__free_page(page);
+//	__free_page(page);
 }
 
 
