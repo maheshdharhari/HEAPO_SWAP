@@ -1218,17 +1218,10 @@ pos_public_mALLOc(char *name, unsigned long _bytes)
 		return NULL;
 	}*/
 
-//TEMP
-	printf("[POS LIB] %s is called for object %s\n", __FUNCTION__, name);
-
 	ar_ptr = (struct malloc_state *)pos_lookup_mstate(name);
 	if (ar_ptr == NULL) {
 		return NULL;
 	}
-
-//TEMP
-	printf("[POS LIB] %s ar_ptr: %p\n", __FUNCTION__, ar_ptr);
-	printf("[POS LIB] %s ar_ptr: %p, have_init_key: %d\n", __FUNCTION__, ar_ptr, have_init_key(ar_ptr));
 
 	//if(*((size_t *)ar_ptr) == POS_MAGIC)
 	if (!have_init_key(ar_ptr)) {
