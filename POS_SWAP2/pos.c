@@ -112,7 +112,7 @@ struct page *pos_alloc_page(int kind)
 //		page = pos_buffered_rmqueue(zone, 0);
 //		if(page == NULL)
 //			return pos_alloc_page_slowpath(zone,0, 2); // movable 
-		return page;
+//		return page;
 #else
 //		return pos_buffered_rmqueue(zone, 0);
 #endif
