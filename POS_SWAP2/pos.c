@@ -145,8 +145,6 @@ void pos_free_page(unsigned long pfn)
 	}
 
 	if(page_mapped(page)){
-//TEMP
-		printk("[POS DEBUG] delete page %p , mapcount %d\n", page, page->_mapcount);
 		atomic_long_dec(&current->mm->nr_ptes);
 		atomic_dec(&page->_mapcount);
 	}
