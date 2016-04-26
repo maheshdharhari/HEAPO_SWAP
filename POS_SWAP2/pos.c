@@ -683,7 +683,7 @@ unsigned long pos_update_map_array_with_pfn(struct pos_vm_area *vma, unsigned lo
 		return pfn;
 	}
 	else
-		return POS_EMPTY
+		return POS_EMPTY;
 }
 
 //addr를 포함한 page와 맵핑된 page frame의 number를 반환함
