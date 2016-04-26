@@ -627,7 +627,64 @@ unsigned long pos_find_pfn(struct pos_vm_area *vma, unsigned long addr)
 	}
 }
 
+// POS SWAP
+unsigned long pos_update_map_array_with_pfn(struct pos_vm_area *vma, unsigned long addr, unsigned long pfn)
+{
+	struct pos_map_array *map_array;
+	unsigned long pages;
+	unsigned long sublevel_pages;
+	int level;
+	int index;
+	struct pos_superblock *sb;
 
+	sb = pos_get_sb();
+
+	pages = (addr - vma->vm_start) >> PAGE_SHIFT;
+	map_array = vma->map_array;
+	level = map_array->level;
+	
+	while (level > 1) {
+		
+		sublevel_pages = pos_level_to_pages(level-1);
+
+		index = pages/sublevel_pages;
+		
+		if (map_array->pfns[index] == POS_EMPTY) {
+			
+			struct pos_map_array *tmp_array;
+			int i;
+
+			tmp_array = pos_kmem_cache_alloc(sb->pos_map_array_struct_cachep, GFP_KERNEL);
+			
+			tmp_array->level = level-1;
+			tmp_array->pn = map_array->pn + i*sublevel_pages;
+			for (i=0; i<POS_MAP_NR; i++) {
+				tmp_array->pfns[i] = POS_EMPTY;
+			}
+		
+#ifdef POS_SWAP
+			// Initialize the swap bitmap
+			bitmap_zero(tmp_array->swap_bitmap, SWAP_BITMAP_BITS);
+#endif
+			map_array->pfns[index] = (unsigned long)tmp_array;
+			
+		}
+
+		level--;
+		pages = pages - (index*sublevel_pages);
+		map_array = (struct pos_map_array *)map_array->pfns[index];
+	}
+
+	// Level 1
+	index = pages;
+
+	if (map_array->pfns[index] == 0) {
+		map_array->pfns[index] = pfn;
+		return pfn;
+	}
+	else
+		return POS_EMPTY
+}
 
 //addr를 포함한 page와 맵핑된 page frame의 number를 반환함
 //multi-level의 map_array를 탐색하여 pfn을 구함

@@ -194,6 +194,7 @@ struct pos_superblock
 extern struct kmem_cache *pos_task_pid_struct_cachep;
 
 #ifdef POS_SWAP
+extern unsigned long pos_update_map_array_with_pfn(struct pos_vm_area *vma, unsigned long addr, unsigned long pfn);
 extern unsigned long pos_find_pfn(struct pos_vm_area *vma, unsigned long addr);
 extern struct pos_vm_area *pos_find_vma(struct pos_superblock *sb, unsigned long addr);
 extern unsigned long pos_get_swap_entry(unsigned long vaddr);

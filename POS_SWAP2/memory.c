@@ -3313,6 +3313,10 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		if(pfn == POS_EMPTY){
 			// New Page Allocation from NVRAM
 			page = alloc_zeroed_user_highpage_movable(vma, address);
+		
+			// Update Map Array
+			page = page_to_pfn(pfn);
+			pos_update_map_array_with_pfn(pos_vma, address, pfn);
 		}
 		else{
 			page = pfn_to_page(pfn);
