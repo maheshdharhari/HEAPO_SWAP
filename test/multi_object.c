@@ -4,13 +4,13 @@
 #include <unistd.h>
 #include "pos-lib.h"
 
-#define N_OBJECT_NAME	6
+#define N_OBJECT_NAME	10
 
 int n_objects;
-long long object_size_1k;
-long long object_size;
+int object_size_1k;
+int object_size;
 char** arr_object_name;
-void** p_object;
+char** p_object;
 
 void init_test_object_names(void);
 void create_test_objects(void);
@@ -21,16 +21,14 @@ void delete_test_objects(void);
 
 int main(int argc, char* argv[])
 {
-
 	int i;
-	long long object_size_1k;
-	long long object_size;
+	int temp;
 
 	n_objects		= atoi(argv[1]);
 	object_size_1k 		= atoi(argv[2]);	// total object size (kbyte)
 	object_size 		= object_size_1k * 1024;	// object size for each threads
 
-	printf("[POS TEST] Start Test for %d objects (%lld Kbyte)\n", n_objects, object_size_1k);
+	printf("[POS TEST] Start Test for %d objects (%d Kbyte)\n", n_objects, object_size_1k);
 
 	init_test_object_names();
 	printf("\t--Init object names complete!\n");
@@ -60,7 +58,6 @@ int main(int argc, char* argv[])
 void init_test_object_names(void)
 {
 	int i;
-	char temp_c[4];
 	char object_name[N_OBJECT_NAME];
 
 	/* Allocate Memory for object name variable */
@@ -69,9 +66,9 @@ void init_test_object_names(void)
 		arr_object_name[i] = (char*)malloc(sizeof(object_name));
 	}
 
-	p_object = (void**)malloc(sizeof(void*) * n_objects);
+	p_object = (char**)malloc(sizeof(char*) * n_objects);
 	for(i=0; i<n_objects; i++){
-		p_object[i] = (void*)malloc(sizeof(void*));
+		p_object[i] = (char*)malloc(sizeof(char*));
 	}
 
 	for(i=0; i<n_objects; i++){
@@ -79,8 +76,7 @@ void init_test_object_names(void)
 		memset(object_name, '\0', sizeof(object_name));
 
 		/* Make object name*/
-		sprintf(temp_c,"%d", i+1);
-		strncat(object_name, temp_c, 4);
+		sprintf(object_name,"%d", i+1);
 	
 		/* Update object name array */
 		strcpy(arr_object_name[i], object_name);
@@ -92,16 +88,21 @@ void create_test_objects(void)
 	int i;
 	for(i = 0; i<n_objects; i++){
 		pos_create(arr_object_name[i]);
+		printf("\t\t object %s is created\n", arr_object_name[i]);
 	}
 }  
 
 void alloc_memory_to_test_objects(void)
 {
 	int i;
-	for(i = 0; i<n_objects; i++){
-		p_object[i] = pos_malloc(arr_object_name[i], object_size);
-	}
+	char* buf = (char*)malloc(object_size);
+	memset(buf, 0xcafe, object_size);
 
+	for(i = 0; i<n_objects; i++){
+		p_object[i] = (char*)pos_malloc(arr_object_name[i], object_size);
+		memcpy(p_object[i], buf, object_size);
+		printf("\t\t alloc memory for  object %s\n", arr_object_name[i]);
+	}
 }
 
 void free_test_objects(void)
