@@ -680,8 +680,6 @@ unsigned long pos_update_map_array_with_pfn(struct pos_vm_area *vma, unsigned lo
 
 	if (map_array->pfns[index] == 0) {
 		map_array->pfns[index] = pfn;
-//TEMP
-		printk("[POS DEBUG] Alloced PFN: %lu\n", pfn);
 		return pfn;
 	}
 	else
