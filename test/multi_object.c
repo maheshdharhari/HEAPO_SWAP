@@ -17,6 +17,7 @@ void create_test_objects(void);
 void open_test_objects(void);
 void alloc_memory_to_test_objects(void);
 void free_test_objects(void);
+void delete_test_objects(void);
 
 int main(int argc, char* argv[])
 {
@@ -42,6 +43,9 @@ int main(int argc, char* argv[])
 
 	free_test_objects();
 	printf("\t--Free test objects complete! \n");
+
+	delete_test_objects();
+	printf("\t--Delete test objects complete! \n");
 
 	/* Free memory for name array */
         for(i=0; i<n_objects; i++){
@@ -105,5 +109,13 @@ void free_test_objects(void)
 	int i;
 	for(i = 0; i<n_objects; i++){
 		pos_free(arr_object_name[i], p_object[i]);
+	}
+}
+
+void delete_test_objects(void)
+{
+	int i;
+	for(i = 0; i<n_objects; i++){
+		pos_delete(arr_object_name[i]);
 	}
 }
