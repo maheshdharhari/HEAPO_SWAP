@@ -1916,10 +1916,6 @@ pos_get_page_from_freelist(struct zone* zone, gfp_t gfp_mask, unsigned int order
 {
 	struct page *page = NULL;
 	int classzone_idx;
-	//nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
-	//int zlc_active = 0;		/* set if using zonelist_cache */
-	//int did_zlc_setup = 0;		/* just call zlc_setup() one time */
-
 	unsigned long mark;
 	classzone_idx = zone_idx(zone);
 	/*
@@ -2003,11 +1999,10 @@ pos_get_page_from_freelist(struct zone* zone, gfp_t gfp_mask, unsigned int order
 		if (((alloc_flags & ALLOC_WMARK_MASK) == ALLOC_WMARK_MIN) ||
 			ret == ZONE_RECLAIM_SOME)
 			goto stop_try_this_zone;
-
-try_this_zone:
-		page = buffered_rmqueue(zone, zone, order,
-						gfp_mask, migratetype);
 	}
+try_this_zone:
+	page = buffered_rmqueue(zone, zone, order,
+					gfp_mask, migratetype);
 
 	if (page)
 		/*
