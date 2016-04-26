@@ -2026,6 +2026,20 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
  *
  *	Should be called with the mm_sem of the vma hold.
  */
+
+// POS SWAP
+struct page *
+pos_alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+                unsigned long addr, int node)
+{
+	if(POS_START_AREA < addr && addr < POS_END_AREA){
+		struct zone* zone;
+                zone = &NODE_DATA(node)->node_zones[ZONE_NVRAM];
+                page = __pos_alloc_pages_nodemask(gfp, order, zone);
+	}
+	return alloc_pages(gfp, order);
+}
+
 struct page *
 alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
 		unsigned long addr, int node)
