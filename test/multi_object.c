@@ -41,6 +41,7 @@ int main(int argc, char* argv[])
 	printf("\t--Alloc memory complete! \n");
 
 	scanf("%d",&temp);
+
 	unmap_test_objects();
 	printf("\t--Unmap test objects complete! \n");
 
