@@ -16,6 +16,7 @@ void init_test_object_names(void);
 void create_test_objects(void);
 void open_test_objects(void);
 void alloc_memory_to_test_objects(void);
+void unmap_test_objects(void);
 void free_test_objects(void);
 void delete_test_objects(void);
 
@@ -38,6 +39,10 @@ int main(int argc, char* argv[])
 
 	alloc_memory_to_test_objects();
 	printf("\t--Alloc memory complete! \n");
+
+	scanf("%d",&temp);
+	unmap_test_objects();
+	printf("\t--Unmap test objects complete! \n");
 
 	free_test_objects();
 	printf("\t--Free test objects complete! \n");
@@ -102,6 +107,14 @@ void alloc_memory_to_test_objects(void)
 		p_object[i] = (char*)pos_malloc(arr_object_name[i], object_size);
 		memcpy(p_object[i], buf, object_size);
 		printf("\t\t alloc memory for  object %s\n", arr_object_name[i]);
+	}
+}
+
+void unmap_test_objects(void)
+{
+	int i;
+	for(i = 0; i<n_objects; i++){
+		pos_unmap(arr_object_name[i]);
 	}
 }
 
