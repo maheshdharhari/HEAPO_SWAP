@@ -3291,7 +3291,33 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	/* Allocate our own private page. */
 	if (unlikely(anon_vma_prepare(vma)))
 		goto oom;
-	page = alloc_zeroed_user_highpage_movable(vma, address);
+
+	// POS SWAP
+	if(POS_AREA_START <= address && address < POS_AREA_END){
+
+		unsigned long pfn;
+		struct pos_vm_area *pos_vma;
+		struct pos_superblock *sb;
+
+		// Get pos superblock
+		sb = pos_get_sb();
+		pos_vma = pos_find_vma(sb, address);
+
+		// Check Map array
+		pfn = pos_find_pfn(pos_vma, address);
+
+		// If the object does not exist.
+		if(pfn == POS_EMPTY){
+			// New Page Allocation from NVRAM
+			page = alloc_zeroed_user_highpage_movable(vma, address);
+		}
+		else{
+			page = pfn_to_page(pfn);
+		}
+	}
+	else{
+		page = alloc_zeroed_user_highpage_movable(vma, address);
+	}
 	if (!page)
 		goto oom;
 	/*
