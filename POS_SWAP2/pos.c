@@ -156,7 +156,7 @@ void pos_free_page(unsigned long pfn)
 //TEMP
 	printk("[POS DEBUG] NR_FREE_PAGES: %d\n", zone_page_state(pagezone, NR_FREE_PAGES));
 */
-	__free_page(page);
+//	__free_page(page);
 }
 
 
@@ -2165,7 +2165,7 @@ asmlinkage void *sys_pos_create(char __user *name, unsigned long size)
 }
 
 
-asmlinkage int sys_pos_delete(char __user *name)
+asmlinkage int sys_pos_unmap(char __user *name)
 {
 	struct pos_superblock *sb;
 	struct pos_ns_record *record;
@@ -2298,9 +2298,8 @@ asmlinkage void *sys_pos_map(char __user *name)
 
 	return (void *)desc->prime_seg;
 }
-
-
-asmlinkage int sys_pos_unmap(char __user *name)
+// POS SWAP
+asmlinkage int sys_pos_delete(char __user *name)
 {
 	struct pos_superblock *sb;
 	struct pos_ns_record *record;
