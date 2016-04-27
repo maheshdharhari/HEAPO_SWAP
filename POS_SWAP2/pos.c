@@ -500,51 +500,7 @@ void pos_remove_vm_area(struct pos_superblock *sb, struct pos_vm_area *vma,
 void pos_free_map_array(struct pos_map_array *map_array)
 {
 	struct pos_superblock *sb;
-	int i;
-	swp_entry_t swp_entry;
-
 	sb = pos_get_sb();
-
-	// 1-level
-	if (map_array->level == 1) {
-		
-		for (i=0; i<POS_MAP_NR; i++) {
-			if (map_array->pfns[i] != POS_EMPTY) {
-#ifdef POS_SWAP
-				if(test_bit(i, map_array->swap_bitmap)){
-					// Remove the page from swap cache and swap partition
-					swp_entry.val = (unsigned long)(map_array->pfns[i]);
-					free_swap_and_cache(swp_entry);
-					clear_bit(i, map_array->swap_bitmap);
-				}
-				else{
-					// Release NVRAM page
-					pos_free_page(map_array->pfns[i]);
-				}
-#else
-				pos_free_page(map_array->pfns[i]);
-#endif
-				
-				map_array->pfns[i] = POS_EMPTY;
-			}
-		}
-
-	}
-	else {
-	// Not 1-level
-	
-		for (i=0; i<POS_MAP_NR; i++) {
-			if (map_array->pfns[i] != POS_EMPTY) {
-				struct pos_map_array *next_map_array;
-				next_map_array = (struct pos_map_array *)map_array->pfns[i];
-				pos_free_map_array(next_map_array);
-				
-				map_array->pfns[i] = POS_EMPTY;
-			}
-		}
-		
-	}
-
 	// Free pos_map_array
 	pos_kmem_cache_free(sb->pos_map_array_struct_cachep, map_array);
 }
@@ -2165,7 +2121,7 @@ asmlinkage void *sys_pos_create(char __user *name, unsigned long size)
 }
 
 
-asmlinkage int sys_pos_unmap(char __user *name)
+asmlinkage int sys_pos_delete(char __user *name)
 {
 	struct pos_superblock *sb;
 	struct pos_ns_record *record;
@@ -2299,7 +2255,7 @@ asmlinkage void *sys_pos_map(char __user *name)
 	return (void *)desc->prime_seg;
 }
 // POS SWAP
-asmlinkage int sys_pos_delete(char __user *name)
+asmlinkage int sys_pos_unmap(char __user *name)
 {
 	struct pos_superblock *sb;
 	struct pos_ns_record *record;
