@@ -37,9 +37,6 @@ int main(int argc, char* argv[])
 	object_size 		= object_size_1k * 1024;	// object size for each threads
 
 	n_hot_objects		= (n_objects * hot_ratio)/100;
-	if(n_hot_objects <= 0){
-		n_hot_objects = 1;
-	}
 	n_cold_objects		= n_objects - n_hot_objects;
 
 	printf("[POS TEST] Start Test for %d objects (%d Kbyte)\n", n_objects, object_size_1k);
@@ -106,6 +103,7 @@ void init_test_object_names(void)
 	
 		/* Update object name array */
 		strcpy(arr_hot_object[i], object_name);
+		strcpy(arr_object_name[i], object_name);
 	}
 
 	for(i=0; i<n_cold_objects; i++){
@@ -118,16 +116,13 @@ void init_test_object_names(void)
 	
 		/* Update object name array */
 		strcpy(arr_cold_object[i], object_name);
+		strcpy(arr_object_name[i+n_hot_objects], object_name);
 	}
 
 //TEMP
-	for(i=0; i<n_hot_objects; i++){
-		printf("[%s]\n", arr_hot_object[i]);
+	for(i=0; i<n_objects; i++){
+		printf("[%s]\n", arr_object_name[i]);
 	}
-	for(i=0; i<n_cold_objects; i++){
-		printf("[%s]\n", arr_cold_object[i]);
-	}
-	
 }
 
 void create_test_objects(void)
