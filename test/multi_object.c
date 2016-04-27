@@ -40,7 +40,7 @@ int main(int argc, char* argv[])
 	alloc_memory_to_test_objects();
 	printf("\t--Alloc memory complete! \n");
 
-	scanf("%d",&temp);
+//	scanf("%d",&temp);
 //	unmap_test_objects();
 //	printf("\t--Unmap test objects complete! \n");
 
