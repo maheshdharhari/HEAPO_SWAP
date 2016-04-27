@@ -79,6 +79,18 @@ void init_test_object_names(void)
 		arr_object_name[i] = (char*)malloc(sizeof(object_name));
 	}
 
+	/* Allocate Memory for hot object name variable */
+	arr_hot_object = (char**)malloc(sizeof(object_name) * n_hot_objects);
+	for(i=0; i<n_hot_objects; i++){
+		arr_hot_object[i] = (char*)malloc(sizeof(object_name));
+	}
+
+	/* Allocate Memory for hot object name variable */
+	arr_cold_object = (char**)malloc(sizeof(object_name) * n_cold_objects);
+	for(i=0; i<n_cold_objects; i++){
+		arr_cold_object[i] = (char*)malloc(sizeof(object_name));
+	}
+
 	p_object = (char**)malloc(sizeof(char*) * n_objects);
 	for(i=0; i<n_objects; i++){
 		p_object[i] = (char*)malloc(sizeof(char*));
@@ -93,10 +105,10 @@ void init_test_object_names(void)
 		strncat(object_name,"h", 1);
 	
 		/* Update object name array */
-		strcpy(arr_object_name[i], object_name);
+		strcpy(arr_hot_object[i], object_name);
 	}
 
-	for(i=n_hot_objects; i<n_objects; i++){
+	for(i=0; i<n_cold_objects; i++){
 		/* Reset object name */
 		memset(object_name, '\0', sizeof(object_name));
 
@@ -105,12 +117,15 @@ void init_test_object_names(void)
 		strncat(object_name,"c", 1);
 	
 		/* Update object name array */
-		strcpy(arr_object_name[i], object_name);
+		strcpy(arr_cold_object[i], object_name);
 	}
 
 //TEMP
-	for(i=0; i<n_objects; i++){
-		printf("[%s]\n", arr_object_name[i]);
+	for(i=0; i<n_hot_objects; i++){
+		printf("[%s]\n", arr_hot_object[i]);
+	}
+	for(i=0; i<n_cold_objects; i++){
+		printf("[%s]\n", arr_cold_object[i]);
 	}
 	
 }
