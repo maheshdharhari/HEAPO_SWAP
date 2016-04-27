@@ -3,7 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 
-//#define POS
+#define POS
 #ifdef POS
 	#include "pos-lib.h"
 #endif
@@ -22,7 +22,6 @@ int hot_ratio;
 char** arr_object_name;
 char** arr_hot_object;
 char** arr_cold_object;
-char** p_object;
 char** p_hot_object;
 char** p_cold_object;
 
@@ -115,7 +114,7 @@ int main(int argc, char* argv[])
 	n_hot_objects		= (n_objects * hot_ratio)/100;
 	n_cold_objects		= n_objects - n_hot_objects;
 
-	printf("[POS TEST] Start Test for %d objects (%d Kbyte)\n", n_objects, object_size_1k);
+	printf("[POS TEST] Start Test for %d objects (hot:%d, cold:%d), %d Kbyte)\n", n_objects, n_hot_objects, n_cold_objects, object_size_1k);
 
 	init_test_object_names();
 	printf("\t--Init object names complete!\n");
@@ -127,9 +126,10 @@ int main(int argc, char* argv[])
 	alloc_memory_to_test_objects();
 	printf("\t--Alloc memory complete! \n");
 
-	test_time = update_test_ojects();
+	test_time = update_test_objects();
 	printf("\t--Update objects complete! \n");
 
+	printf("Type something for continue..\n");
 	scanf("%d",&temp);
 
 	delete_test_objects();
@@ -170,9 +170,14 @@ void init_test_object_names(void)
 		arr_cold_object[i] = (char*)malloc(sizeof(object_name));
 	}
 
-	p_object = (char**)malloc(sizeof(char*) * n_objects);
-	for(i=0; i<n_objects; i++){
-		p_object[i] = (char*)malloc(sizeof(char*));
+	p_hot_object = (char**)malloc(sizeof(char*) * n_hot_objects);
+	for(i=0; i<n_hot_objects; i++){
+		p_hot_object[i] = (char*)malloc(sizeof(char*));
+	}
+
+	p_cold_object = (char**)malloc(sizeof(char*) * n_cold_objects);
+	for(i=0; i<n_cold_objects; i++){
+		p_cold_object[i] = (char*)malloc(sizeof(char*));
 	}
 
 	for(i=0; i<n_hot_objects; i++){
@@ -210,6 +215,7 @@ void init_test_object_names(void)
         }
 
 //TEMP
+/*
 	for(i=0; i<n_objects; i++){
 		printf("[%s]", arr_object_name[i]);
 		if(arr_object_name[i][0] == 'c'){
@@ -219,6 +225,7 @@ void init_test_object_names(void)
 			printf(" hot!\n");
 		}
 	}
+*/
 }
 
 #ifdef POS
@@ -233,17 +240,31 @@ void create_test_objects(void)
 void alloc_memory_to_test_objects(void)
 {
 	int i;
+	int hot = 0;
+	int cold = 0;
 	char* buf = (char*)malloc(object_size);
 	memset(buf, 0xcafe, object_size);
 
 	for(i = 0; i<n_objects; i++){
 		if(arr_object_name[i][0] == 'c'){
-			p_cold_object[i] = (char*)pos_malloc(arr_object_name[i], object_size);
-			memcpy(p_cold_object[i], buf, object_size);
+			p_cold_object[cold] = (char*)pos_malloc(arr_object_name[i], object_size);
+			if(p_cold_object[cold] == NULL){
+				printf("[BUG] %s / %d object alloc fail\n", arr_object_name[i], i);
+			}
+			else{
+				memcpy(p_cold_object[cold], buf, object_size);
+			}
+			cold++;
 		}
 		else{
-			p_hot_object[i] = (char*)pos_malloc(arr_object_name[i], object_size);
-			memcpy(p_hot_object[i], buf, object_size);
+			p_hot_object[hot] = (char*)pos_malloc(arr_object_name[i], object_size);
+			if(p_hot_object[hot] == NULL){
+				printf("[BUG] %s / %d  object alloc fail\n", arr_object_name[i], i);
+			}
+			else{
+				memcpy(p_hot_object[hot], buf, object_size);
+			}
+			hot++;
 		}
 	}
 
@@ -253,8 +274,8 @@ void alloc_memory_to_test_objects(void)
 long long update_test_objects(void)
 {
 	int i;
-	int hot;
-	int object_nb
+	int is_hot;
+	int object_nb;
 	long long io_time_start, io_time_end;
 	char* buf = (char*)malloc(object_size);
         memset(buf, 0xefac, object_size);
@@ -267,11 +288,11 @@ long long update_test_objects(void)
 
 		if(is_hot <= HOT_ACCESS_RATIO){
 			object_nb = rand()%n_hot_objects;
-			memcpy(p_hot_object[i], buf, object_size);
+			memcpy(p_hot_object[object_nb], buf, object_size);
 		}
 		else{
 			object_nb = rand()%n_cold_objects;
-			memcpy(p_cold_object[i], buf, object_size);
+			memcpy(p_cold_object[object_nb], buf, object_size);
 		}
 	}
 
@@ -284,6 +305,7 @@ long long update_test_objects(void)
 
 void delete_test_objects(void)
 {
+	int i;
 	for(i = 0; i<n_objects; i++){
 		pos_delete(arr_object_name[i]);
 	}
