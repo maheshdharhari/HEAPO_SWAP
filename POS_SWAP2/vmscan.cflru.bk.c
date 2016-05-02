@@ -2158,18 +2158,18 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 	if(is_nvram(zone)){
 
 		current->flags |= PF_KSWAPD;
-/*
+
 		nr_reclaimed = pos_shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
                                &nr_dirty, &nr_unqueued_dirty, &nr_congested,
                                &nr_writeback, &nr_immediate,
-                               false)
-*/
+                               true);
+/*
 
 		nr_reclaimed = cflru_shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
                                &nr_dirty, &nr_unqueued_dirty, &nr_congested,
                                &nr_writeback, &nr_immediate,
                                false);
-
+*/
 /*
 		nr_reclaimed = shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
                                &nr_dirty, &nr_unqueued_dirty, &nr_congested,
@@ -2403,6 +2403,13 @@ static void shrink_active_list(unsigned long nr_to_scan,
 			 * IO, plus JVM can create lots of anon VM_EXEC pages,
 			 * so we ignore them here.
 			 */
+			if(is_nvram(zone))
+			{
+				list_add(&page->lru, &l_active);
+				continue;
+			}
+
+
 			if ((vm_flags & VM_EXEC) && page_is_file_cache(page)) {
 				list_add(&page->lru, &l_active);
 				continue;
@@ -2410,6 +2417,17 @@ static void shrink_active_list(unsigned long nr_to_scan,
 		}
 
 		ClearPageActive(page);	/* we are de-activating */
+
+		if(PageDirty(page)&&is_nvram(zone))
+		{
+			list_add(&page->lru, &l_inactive);
+			continue;
+		}
+		else if(!PageDirty(page)&&is_nvram(zone))
+		{
+			list_add_tail(&page->lru, &l_inactive);
+			continue;
+		}		
 		list_add(&page->lru, &l_inactive);
 	}
 
