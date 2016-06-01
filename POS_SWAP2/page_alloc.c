@@ -2663,6 +2663,9 @@ __pos_alloc_pages_slowpath(struct zone* zone, gfp_t gfp_mask, unsigned int order
 	unsigned long pages_reclaimed = 0;
 	unsigned long did_some_progress;
 
+
+
+
 	/*
 	 * In the slowpath, we sanity check order to avoid ever trying to
 	 * reclaim >= MAX_ORDER areas which will never succeed. Callers may
@@ -2974,7 +2977,9 @@ __pos_alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, struct zone* zone
 	struct page *page = NULL;
 	int migratetype = allocflags_to_migratetype(gfp_mask);
 	unsigned int cpuset_mems_cookie;
+// NYG POS TEMP
 	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET|ALLOC_FAIR;
+//
 	struct mem_cgroup *memcg = NULL;
 
 	gfp_mask &= gfp_allowed_mask;

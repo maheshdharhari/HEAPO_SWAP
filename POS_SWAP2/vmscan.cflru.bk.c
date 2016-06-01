@@ -137,6 +137,12 @@ struct scan_control {
 int vm_swappiness = 60;
 unsigned long vm_total_pages;	/* The total number of pages which the VM controls */
 
+// NYG TEMP POS
+static long inactive = 0;
+static int cflru_clean = 1;
+//
+
+
 static LIST_HEAD(shrinker_list);
 static DECLARE_RWSEM(shrinker_rwsem);
 
@@ -493,6 +499,9 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
 	if (!may_write_to_queue(mapping->backing_dev_info, sc))
 		return PAGE_KEEP;
 
+
+
+
 	if (clear_page_dirty_for_io(page)) {
 		int res;
 		struct writeback_control wbc = {
@@ -504,6 +513,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
 		};
 
 		SetPageReclaim(page);
+/*
 		res = mapping->a_ops->writepage(page, &wbc);
 		if (res < 0)
 			handle_write_error(mapping, page, res);
@@ -513,14 +523,31 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
 		}
 
 		if (!PageWriteback(page)) {
-			/* synchronous write or broken a_ops? */
+			// synchronous write or broken a_ops? 
 			ClearPageReclaim(page);
 		}
 		trace_mm_vmscan_writepage(page, trace_reclaim_flags(page));
 		inc_zone_page_state(page, NR_VMSCAN_WRITE);
 		return PAGE_SUCCESS;
 	}
+	*/
+                res = mapping->a_ops->writepage(page, &wbc);
+                if (res < 0)
+                        handle_write_error(mapping, page, res);
+                if (res == AOP_WRITEPAGE_ACTIVATE) {
+                        ClearPageReclaim(page);
+                        return PAGE_ACTIVATE;
+                }
 
+                if (!PageWriteback(page)) {
+                        /* synchronous write or broken a_ops? */
+                        ClearPageReclaim(page);
+                }
+                trace_mm_vmscan_writepage(page, trace_reclaim_flags(page));
+                inc_zone_page_state(page, NR_VMSCAN_WRITE);
+                return PAGE_SUCCESS;
+        }
+        
 	return PAGE_CLEAN;
 }
 
@@ -971,239 +998,467 @@ keep:
         return nr_reclaimed;
 }
 
-
-
 /*
- * shrink_page_list() returns the number of reclaimed pages
- */
 static unsigned long cflru_shrink_page_list(struct list_head *page_list,
-				      struct zone *zone,
-				      struct scan_control *sc,
-				      enum ttu_flags ttu_flags,
-				      unsigned long *ret_nr_dirty,
-				      unsigned long *ret_nr_unqueued_dirty,
-				      unsigned long *ret_nr_congested,
-				      unsigned long *ret_nr_writeback,
-				      unsigned long *ret_nr_immediate,
-				      bool force_reclaim)
+                                      struct zone *zone,
+                                      struct scan_control *sc,
+                                      enum ttu_flags ttu_flags,
+                                      unsigned long *ret_nr_dirty,
+                                      unsigned long *ret_nr_unqueued_dirty,
+                                      unsigned long *ret_nr_congested,
+                                      unsigned long *ret_nr_writeback,
+                                      unsigned long *ret_nr_immediate,
+                                      bool force_reclaim)
 {
-	LIST_HEAD(ret_pages);
-	LIST_HEAD(free_pages);
-	int pgactivate = 0;
-	int allcleanded =0;
-	unsigned long nr_unqueued_dirty = 0;
-	unsigned long nr_dirty = 0;
-	unsigned long nr_congested = 0;
-	unsigned long nr_reclaimed = 0;
-	unsigned long nr_writeback = 0;
-	unsigned long nr_immediate = 0;
-	unsigned long clean,dirty,clean_sum;
-	cond_resched();
-
-	mem_cgroup_uncharge_start();
-retry:
-	if(allcleanded)
-	{
-		printk("[POS DEBUG] oh come on!\n");
-	}
-	clean =0;
-	dirty=0;	
-	while (!list_empty(page_list)) {
+        LIST_HEAD(ret_pages);
+        LIST_HEAD(free_pages);
+	LIST_HEAD(wb_pages);
+        int pgactivate = 0;
+	int allcleanded = 0;
+        unsigned long nr_unqueued_dirty = 0;
+        unsigned long nr_dirty = 0;
+        unsigned long nr_congested = 0;
+        unsigned long nr_reclaimed = 0;
+        unsigned long nr_writeback = 0;
+        unsigned long nr_immediate = 0;
+		//nyg
+	unsigned long clean = 0;
+	unsigned long dirty = 0;
+	unsigned long unevictable = 0;
+	unsigned long all_pages_number = 0;
+	unsigned long need_to_reclaim = sc->nr_to_reclaim - sc->nr_reclaimed;
+		
+		
+		
+	if(!need_to_reclaim)
+		return 0;
 	
-		struct address_space *mapping;
-		struct page *page;
-		int may_enter_fs;
-		enum page_references references = PAGEREF_RECLAIM_CLEAN;
-		bool dirty, writeback;
+        cond_resched();
 
-		cond_resched();
-
-		page = lru_to_page(page_list);
-		list_del(&page->lru);
-
-		if (!trylock_page(page))
-			goto keep;
-
-		VM_BUG_ON_PAGE(PageActive(page), page);
-		VM_BUG_ON_PAGE(page_zone(page) != zone, page);
-
-		sc->nr_scanned++;
-
-		if (unlikely(!page_evictable(page)))
-			goto cull_mlocked;
-
-		if (!sc->may_unmap && page_mapped(page))
-			goto keep_locked;
-
-		/* Double the slab pressure for mapped and swapcache pages */
-		if (page_mapped(page) || PageSwapCache(page))
-			sc->nr_scanned++;
-
-		may_enter_fs = (sc->gfp_mask & __GFP_FS) ||
-			(PageSwapCache(page) && (sc->gfp_mask & __GFP_IO));
-
-		mapping = page_mapping(page);
-		if ((mapping && bdi_write_congested(mapping->backing_dev_info)) ||
-		    (writeback && PageReclaim(page)))
-			nr_congested++;
-
-		printk("[POS DEBUG]Writback?\n");
-		if (PageWriteback(page)) {
-			printk("[YEAH] writback?\n");
-			if (PageReclaim(page) && zone_is_reclaim_writeback(zone)) {
-				printk("[POS DEBUG] case 1\n");
-				nr_immediate++;
-				goto keep_locked;
-
-			} else if (global_reclaim(sc) ||
-			    !PageReclaim(page) || !(sc->gfp_mask & __GFP_IO)) {
-				printk("[POS DEBUG] case 2, %p\n",page);
-				SetPageReclaim(page);
-				nr_writeback++;
-				goto keep_locked;
-
-			} else {
-				printk("[POS DEBUG] case3\n");
-				wait_on_page_writeback(page);
-			}
-		}
-
-		printk("[POS DEBUG]before reference check\n");
-		if (!force_reclaim)
-			references = page_check_references(page, sc);
-
-		switch (references) {
-		case PAGEREF_ACTIVATE:
-			goto activate_locked;
-		case PAGEREF_KEEP:
-			goto keep_locked;
-		case PAGEREF_RECLAIM:
-		case PAGEREF_RECLAIM_CLEAN:
-			; /* try to reclaim the page below */
-		}
-
-		printk("[POS DEBUG]before inside cache\n");
-		if (PageAnon(page) && !PageSwapCache(page)) {
-			printk("[POS DEBUG] really?\n");
-			if (!(sc->gfp_mask & __GFP_IO))
-				goto keep_locked;
-			if (!add_to_swap(page, page_list))
-				goto activate_locked;
-			may_enter_fs = 1;
-
-			mapping = page_mapping(page);
-		}
-
+        mem_cgroup_uncharge_start();
 		
-		printk("[POS DEBUG]Disable mapping~\n");
-		if (page_mapped(page) && mapping) {
-			switch (try_to_unmap(page, ttu_flags)) {
-			case SWAP_FAIL:
-				goto activate_locked;
-			case SWAP_AGAIN:
-				goto keep_locked;
-			case SWAP_MLOCK:
-				goto cull_mlocked;
-			case SWAP_SUCCESS:
-				; /* try to free the page below */
-			}
-		}
-		printk("[POS DEBUG]UnMapping is done\n");
-		
+retry:
+        while (!list_empty(page_list)) {
+                struct address_space *mapping;
+                struct page *page;
+                int may_enter_fs;
+                enum page_references references = PAGEREF_RECLAIM_CLEAN;
+                bool dirty, writeback;
 
-		
-		printk("[POS DEBUG]Dirty check\n");
-		if (PageDirty(page) && allcleanded) {
-			printk("[POS DEBUG]is dirty\n");
-                        switch (pageout(page, mapping, sc)) {
-                        case PAGE_KEEP:
-				printk("[POS] keeplocked!\n");
-                                goto keep_locked;
-                        case PAGE_ACTIVATE:
-				printk("[POS] activated!\n");
-                                goto activate_locked;
-                        case PAGE_SUCCESS:
-				printk("[POS] page success!\n");	
-                                if (PageWriteback(page))
-                                        goto keep;
-				printk("[POS] No writeback!\n");	
-                                if (PageDirty(page))
-                                        goto keep;
-				printk("[POS] No dirty!\n");	
-                                if (!trylock_page(page))
-                                        goto keep;
-				printk("[POS] locking success!\n");	
-                                if (PageDirty(page) || PageWriteback(page))
-                                        goto keep_locked;
-				printk("[POS] go to keep lock!\n");	
+                cond_resched();
+
+                page = lru_to_page(page_list);
+                list_del(&page->lru);
+
+                if (!trylock_page(page))
+                        goto keep;
+
+                VM_BUG_ON_PAGE(PageActive(page), page);
+                VM_BUG_ON_PAGE(page_zone(page) != zone, page);
+
+                sc->nr_scanned++;
+
+                if (unlikely(!page_evictable(page)))
+                        goto cull_mlocked;
+
+                if (page_mapped(page) || PageSwapCache(page))
+                        sc->nr_scanned++;
+
+                may_enter_fs = (sc->gfp_mask & __GFP_FS) ||
+                        (PageSwapCache(page) && (sc->gfp_mask & __GFP_IO));
+
+                page_check_dirty_writeback(page, &dirty, &writeback);
+                if (dirty || writeback)
+                        nr_dirty++;
+
+                if (dirty && !writeback)
+                        nr_unqueued_dirty++;
+
+                mapping = page_mapping(page);
+                if ((mapping && bdi_write_congested(mapping->backing_dev_info)) ||
+                    (writeback && PageReclaim(page)))
+                        nr_congested++;
 				
-                                mapping = page_mapping(page);
-                        case PAGE_CLEAN:
-				printk("[POS] clean!\n");
-                                ; /* try to free the page below */
+				if(PageDirty(page)&&!allcleanded)
+				{
+					goto keep_locked;
+				}
+			
+                if (PageWriteback(page)) {
+                        if (current_is_kswapd() &&
+                            PageReclaim(page) &&
+                            zone_is_reclaim_writeback(zone)) {
+                                nr_immediate++;
+                                goto keep_locked;
+
+                        } else if (global_reclaim(sc) ||
+                            !PageReclaim(page) || !(sc->gfp_mask & __GFP_IO)) {
+                                SetPageReclaim(page);
+                                nr_writeback++;
+
+                                goto keep;
+
+                        } else {
+                                wait_on_page_writeback(page);
                         }
-			printk("[POS] dirty is perfect check!\n");			
                 }
 
-		if (!mapping || !__remove_mapping(mapping, page, true))
-			goto keep_locked;
-		__clear_page_locked(page);
+                if (!force_reclaim)
+                        references = page_check_references(page, sc);
 
-		nr_reclaimed++;
-//nyg
-		clean++;
-//
-		list_add(&page->lru, &free_pages);
-		continue;
+                switch (references) {
+                case PAGEREF_ACTIVATE:
+                        goto activate_locked;
+                case PAGEREF_KEEP:
+                        goto keep_locked;
+                case PAGEREF_RECLAIM:
+                case PAGEREF_RECLAIM_CLEAN:
+                        ; 
+                }
+
+                if (PageAnon(page) && !PageSwapCache(page)) {
+                        if (!(sc->gfp_mask & __GFP_IO))
+                                goto keep_locked;
+                        if (!add_to_swap(page, page_list))
+                                goto activate_locked;
+                        may_enter_fs = 1;
+
+                        mapping = page_mapping(page);
+                }
+
+                if (page_mapped(page) && mapping) {
+                        switch (try_to_unmap(page, ttu_flags)) {
+                        case SWAP_FAIL:
+                                goto activate_locked;
+                        case SWAP_AGAIN:
+                                goto keep_locked;
+                        case SWAP_MLOCK:
+                                goto cull_mlocked;
+                        case SWAP_SUCCESS:
+                                ; 
+                        }
+                }
+
+                if (PageDirty(page)) {
+                        switch (pageout(page, mapping, sc)) {
+                        case PAGE_KEEP:
+                                goto keep_locked;
+                        case PAGE_ACTIVATE:
+                                goto activate_locked;
+                        case PAGE_SUCCESS:
+                                if (PageWriteback(page))
+                                        goto keep;
+                                if (PageDirty(page))
+                                        goto keep;
+                                if (!trylock_page(page))
+                                        goto keep;
+				if (PageDirty(page)||PageWriteback(page))
+					goto keep_locked;
+                                mapping = page_mapping(page);
+                        case PAGE_CLEAN:
+                                ; 
+                        }
+                }
+
+                if (page_has_private(page)) {
+                        if (!try_to_release_page(page, sc->gfp_mask))
+                                goto activate_locked;
+                        if (!mapping && page_count(page) == 1) {
+                                unlock_page(page);
+                                if (put_page_testzero(page))
+                                        goto free_it;
+                                else {
+                                        nr_reclaimed++;
+                                        continue;
+                                }
+                        }
+                }
+
+                if (!mapping || !__remove_mapping(mapping, page, true))
+                        goto keep_locked;
+
+                __clear_page_locked(page);
+free_it:
+                nr_reclaimed++;
+
+                list_add(&page->lru, &free_pages);
+				clean++;
+                continue;
 
 cull_mlocked:
-		if (PageSwapCache(page))
-			try_to_free_swap(page);
-		unlock_page(page);
-		putback_lru_page(page);
-		continue;
+                if (PageSwapCache(page))
+                        try_to_free_swap(page);
+                unlock_page(page);
+				unevictable++;
+                putback_lru_page(page);
+                continue;
 
 activate_locked:
-		/* Not a candidate for swapping, so reclaim swap space. */
-		if (PageSwapCache(page) && vm_swap_full())
-			try_to_free_swap(page);
-		VM_BUG_ON_PAGE(PageActive(page), page);
-		SetPageActive(page);
-		pgactivate++;
+                if (PageSwapCache(page) && vm_swap_full())
+                        try_to_free_swap(page);
+                VM_BUG_ON_PAGE(PageActive(page), page);
+                SetPageActive(page);
+                pgactivate++;
 keep_locked:
-		unlock_page(page);
+                unlock_page(page);
 keep:
-		dirty ++;
-		list_add(&page->lru, &ret_pages);
-		VM_BUG_ON_PAGE(PageLRU(page) || PageUnevictable(page), page);
-	}
-
-	if(clean<=dirty)
-	{
-		clean_sum += clean;
-		if(clean_sum < sc->nr_to_reclaim && !allcleanded)
+				dirty++;
+                list_add(&page->lru, &ret_pages);
+                VM_BUG_ON_PAGE(PageLRU(page) || PageUnevictable(page), page);
+        }
+		
+		if(!dirty && !clean)
 		{
-			allcleanded = 1;
-			list_splice(&ret_pages, page_list);
-			printk("[POE DEBUG] FIRST INIT!! %lu, dirty %lu\n",clean_sum,dirty);
-			
-			goto retry;	
+			if(unevictable)
+				goto escape;
 		}
-	}
-	free_hot_cold_page_list(&free_pages, 1);
-
-	list_splice(&ret_pages, page_list);
-	count_vm_events(PGACTIVATE, pgactivate);
-	mem_cgroup_uncharge_end();
-	*ret_nr_dirty += nr_dirty;
-	*ret_nr_congested += nr_congested;
-	*ret_nr_unqueued_dirty += nr_unqueued_dirty;
-	*ret_nr_writeback += nr_writeback;
-	*ret_nr_immediate += nr_immediate;
-	return nr_reclaimed;
+		
+		if(clean < need_to_reclaim)
+		{
+			if(dirty)
+			{
+				nr_dirty -= dirty;
+				dirty = 0;
+				list_splice(&ret_pages, page_list);
+				allcleanded = 1;
+				goto retry;
+			}
+		}
+		
+escape:
+		
+        free_hot_cold_page_list(&free_pages, 1);
+		list_splice(&wb_pages, page_list);
+        list_splice(&ret_pages, page_list);
+        count_vm_events(PGACTIVATE, pgactivate);
+        mem_cgroup_uncharge_end();
+        *ret_nr_dirty += nr_dirty;
+        *ret_nr_congested += nr_congested;
+        *ret_nr_unqueued_dirty += nr_unqueued_dirty;
+        *ret_nr_writeback += nr_writeback;
+        *ret_nr_immediate += nr_immediate;
+        return nr_reclaimed;
 }
+*/
 
-/////////////////////////////////////////////////////
+static unsigned long cflru_shrink_page_list(struct list_head *page_list,
+                                      struct zone *zone,
+                                      struct scan_control *sc,
+                                      enum ttu_flags ttu_flags,
+                                      unsigned long *ret_nr_dirty,
+                                      unsigned long *ret_nr_unqueued_dirty,
+                                      unsigned long *ret_nr_congested,
+                                      unsigned long *ret_nr_writeback,
+                                      unsigned long *ret_nr_immediate,
+                                      bool force_reclaim)
+{
+        LIST_HEAD(ret_pages);
+        LIST_HEAD(free_pages);
+        int pgactivate = 0;
+        unsigned long nr_unqueued_dirty = 0;
+        unsigned long nr_dirty = 0;
+        unsigned long nr_congested = 0;
+        unsigned long nr_reclaimed = 0;
+        unsigned long nr_writeback = 0;
+        unsigned long nr_immediate = 0;
+		//nyg	
+	unsigned long clean = 0;
+	unsigned long dirty = 0;
+	unsigned long unevictable = 0;
+	unsigned long iter = 0;
+	unsigned long need_to_reclaim = sc->nr_to_reclaim - sc->nr_reclaimed;
+	
+//	printk("[POS SHRIK] before %ld'th start NTR : %ld, NRR : %ld, NeedTR : %ld\n",inactive,sc->nr_to_reclaim,sc->nr_reclaimed, need_to_reclaim);
+        cond_resched();
+        mem_cgroup_uncharge_start();
+		
+        while (!list_empty(page_list)) {
+                struct address_space *mapping;
+                struct page *page;
+                int may_enter_fs;
+                enum page_references references = PAGEREF_RECLAIM_CLEAN;
+		///////
+//		iter ++;
+		///////
+                cond_resched();
+
+                page = lru_to_page(page_list);
+                list_del(&page->lru);
+
+                if (!trylock_page(page))
+                        goto keep;
+
+                VM_BUG_ON_PAGE(PageActive(page), page);
+                VM_BUG_ON_PAGE(page_zone(page) != zone, page);
+
+                sc->nr_scanned++;
+
+                if (unlikely(!page_evictable(page)))
+                        goto cull_mlocked;
+
+                /* Double the slab pressure for mapped and swapcache pages */
+                if (page_mapped(page) || PageSwapCache(page))
+                        sc->nr_scanned++;
+
+                may_enter_fs = (sc->gfp_mask & __GFP_FS) ||
+                        (PageSwapCache(page) && (sc->gfp_mask & __GFP_IO));
+				
+                mapping = page_mapping(page);
+                if ((mapping && bdi_write_congested(mapping->backing_dev_info)) ||
+                    PageReclaim(page))
+                        nr_congested++;
+					
+                if (PageWriteback(page)) {
+			 if (current_is_kswapd() &&
+                            PageReclaim(page) &&
+                            zone_is_reclaim_writeback(zone)) {
+                                nr_immediate++;
+                                goto keep_locked;
+                        /* Case 2 above */
+                        } else if (global_reclaim(sc) ||
+                            !PageReclaim(page) || !(sc->gfp_mask & __GFP_IO)) {
+                                SetPageReclaim(page);
+                                nr_writeback++;
+                                goto keep;
+                        /* Case 3 above */
+                        } else {
+                                wait_on_page_writeback(page);
+                        }
+                }
+
+                if (!force_reclaim)
+                        references = page_check_references(page, sc);
+
+                switch (references) {
+                case PAGEREF_ACTIVATE:
+                        goto activate_locked;
+                case PAGEREF_KEEP:
+                        goto keep_locked;
+                case PAGEREF_RECLAIM:
+                case PAGEREF_RECLAIM_CLEAN:
+                        ; /* try to reclaim the page below */
+                }
+
+                if (PageAnon(page) && !PageSwapCache(page)) {
+                        if (!(sc->gfp_mask & __GFP_IO))
+                                goto keep_locked;
+                        if (!add_to_swap(page, page_list))
+                                goto activate_locked;
+                        may_enter_fs = 1;
+
+                        /* Adding to swap updated mapping */
+                        mapping = page_mapping(page);
+                }
+
+                if (page_mapped(page) && mapping) {
+                        switch (try_to_unmap(page, ttu_flags)) {
+                        case SWAP_FAIL:
+                                goto activate_locked;
+                        case SWAP_AGAIN:
+                                goto keep_locked;
+                        case SWAP_MLOCK:
+                                goto cull_mlocked;
+                        case SWAP_SUCCESS:
+                                ; /* try to free the page below */
+                        }
+                }
+
+                if (PageDirty(page)) {
+					/* Page iis dirty, try to write it out here */
+			if(cflru_clean)
+				goto keep_locked;
+                        switch (pageout(page, mapping, sc)) {
+                        case PAGE_KEEP:
+                                goto keep_locked;
+                        case PAGE_ACTIVATE:
+                                goto activate_locked;
+                        case PAGE_SUCCESS:
+                                if (PageWriteback(page))
+                                        goto keep;
+                                if (PageDirty(page))
+                                        goto keep;
+                                if (!trylock_page(page))
+                                        goto keep;
+				if (PageDirty(page)||PageWriteback(page))
+					goto keep_locked;
+				mapping = page_mapping(page);
+                        case PAGE_CLEAN:
+                                ; /* try to free the page below */
+                        }
+                }
+
+                if (page_has_private(page)) {
+                        if (!try_to_release_page(page, sc->gfp_mask))
+                                goto activate_locked;
+                        if (!mapping && page_count(page) == 1) {
+                                unlock_page(page);
+                                if (put_page_testzero(page))
+                                        goto free_it;
+                                else {
+                                        nr_reclaimed++;
+                                        continue;
+                                }
+                        }
+                }
+
+                if (!mapping || !__remove_mapping(mapping, page, true))
+                        goto keep_locked;
+
+                __clear_page_locked(page);
+free_it:
+                nr_reclaimed++;
+                list_add(&page->lru, &free_pages);
+		clean++;
+//POS
+//		printk("[POS SHRIK]\t%ld'th\t%p\t%x\tclean\n",inactive,page,page_to_pfn(page));
+//POS
+                continue;
+
+cull_mlocked:
+                if (PageSwapCache(page))
+                        try_to_free_swap(page);
+                unlock_page(page);
+		unevictable++;
+                putback_lru_page(page);
+//POS
+//		printk("[POS SHRIK]\t%ld'th\t%p\t%x\tunevic\n",inactive,page,page_to_pfn(page));
+//POS
+                continue;
+
+activate_locked:
+                if (PageSwapCache(page) && vm_swap_full())
+                        try_to_free_swap(page);
+                VM_BUG_ON_PAGE(PageActive(page), page);
+                SetPageActive(page);
+                pgactivate++;
+keep_locked:
+                unlock_page(page);
+keep:
+		dirty++;
+                list_add(&page->lru, &ret_pages);
+//POS
+//		printk("[POS SHRIK]\t%ld'th\t%p\t%x\tdirty\n",inactive,page,page_to_pfn(page));
+//POS
+                VM_BUG_ON_PAGE(PageLRU(page) || PageUnevictable(page), page);
+        }
+
+//	printk("[POS INACT] %ld'th end status NC : %ld, C : %ld, D : %ld, U : %ld\n",inactive,need_to_reclaim,clean,dirty,unevictable);
+
+	if(need_to_reclaim <= sc->nr_scanned)
+	{
+		cflru_clean = 0;
+	}
+        free_hot_cold_page_list(&free_pages, 1);
+        list_splice(&ret_pages, page_list);
+        count_vm_events(PGACTIVATE, pgactivate);
+        mem_cgroup_uncharge_end();
+        *ret_nr_dirty += nr_dirty;
+        *ret_nr_congested += nr_congested;
+        *ret_nr_unqueued_dirty += nr_unqueued_dirty;
+        *ret_nr_writeback += nr_writeback;
+        *ret_nr_immediate += nr_immediate;
+        return nr_reclaimed;
+}
 
 /*
  * shrink_page_list() returns the number of reclaimed pages
@@ -1231,13 +1486,14 @@ static unsigned long pos_shrink_page_list(struct list_head *page_list,
 
 	cond_resched();
 
+
 	mem_cgroup_uncharge_start();
 	while (!list_empty(page_list)) {
 		struct address_space *mapping;
 		struct page *page;
 		int may_enter_fs;
 		enum page_references references = PAGEREF_RECLAIM_CLEAN;
-		
+
 		cond_resched();
 		page = lru_to_page(page_list);
 		list_del(&page->lru);
@@ -1259,48 +1515,9 @@ static unsigned long pos_shrink_page_list(struct list_head *page_list,
 
 		may_enter_fs = (sc->gfp_mask & __GFP_FS) ||
 			(PageSwapCache(page) && (sc->gfp_mask & __GFP_IO));
-
+		
 		mapping = page_mapping(page);
-		if (mapping && bdi_write_congested(mapping->backing_dev_info))
-			nr_congested++;
 
-		/*
-		 * If a page at the tail of the LRU is under writeback, there
-		 * are three cases to consider.
-		 *
-		 * 1) If reclaim is encountering an excessive number of pages
-		 *    under writeback and this page is both under writeback and
-		 *    PageReclaim then it indicates that pages are being queued
-		 *    for IO but are being recycled through the LRU before the
-		 *    IO can complete. Waiting on the page itself risks an
-		 *    indefinite stall if it is impossible to writeback the
-		 *    page due to IO error or disconnected storage so instead
-		 *    note that the LRU is being scanned too quickly and the
-		 *    caller can stall after page list has been processed.
-		 *
-		 * 2) Global reclaim encounters a page, memcg encounters a
-		 *    page that is not marked for immediate reclaim or
-		 *    the caller does not have __GFP_IO. In this case mark
-		 *    the page for immediate reclaim and continue scanning.
-		 *
-		 *    __GFP_IO is checked  because a loop driver thread might
-		 *    enter reclaim, and deadlock if it waits on a page for
-		 *    which it is needed to do the write (loop masks off
-		 *    __GFP_IO|__GFP_FS for this reason); but more thought
-		 *    would probably show more reasons.
-		 *
-		 *    Don't require __GFP_FS, since we're not going into the
-		 *    FS, just waiting on its writeback completion. Worryingly,
-		 *    ext4 gfs2 and xfs allocate pages with
-		 *    grab_cache_page_write_begin(,,AOP_FLAG_NOFS), so testing
-		 *    may_enter_fs here is liable to OOM on them.
-		 *
-		 * 3) memcg encounters a page that is not already marked
-		 *    PageReclaim. memcg does not have any dirty pages
-		 *    throttling so we could easily OOM just because too many
-		 *    pages are in writeback and there is nothing else to
-		 *    reclaim. Wait for the writeback to complete.
-		 */
 		if (PageWriteback(page)) {
 			/* Case 1 above */
 			if (PageReclaim(page) && zone_is_reclaim_writeback(zone)) {
@@ -1330,10 +1547,6 @@ static unsigned long pos_shrink_page_list(struct list_head *page_list,
 			; /* try to reclaim the page below */
 		}
 
-		/*
-		 * Anonymous process memory has backing store?
-		 * Try to allocate it some swap space here.
-		 */
 		if (PageAnon(page) && !PageSwapCache(page)) {
 			if (!(sc->gfp_mask & __GFP_IO))
 				goto keep_locked;
@@ -1373,11 +1586,6 @@ static unsigned long pos_shrink_page_list(struct list_head *page_list,
 					goto keep;
 				if (PageDirty(page))
 					goto keep;
-
-				/*
-				 * A synchronous write - probably a ramdisk.  Go
-				 * ahead and try to reclaim the page.
-				 */
 				if (!trylock_page(page))
 					goto keep;
 				if (PageDirty(page) || PageWriteback(page))
@@ -1389,20 +1597,9 @@ static unsigned long pos_shrink_page_list(struct list_head *page_list,
 		}
 		if (!mapping || !__remove_mapping(mapping, page, true))
 			goto keep_locked;
-		/*
-		 * At this point, we have no other references and there is
-		 * no way to pick any more up (removed from LRU, removed
-		 * from pagecache). Can use non-atomic bitops now (and
-		 * we obviously don't have to worry about waking up a process
-		 * waiting on the page lock, because there are no references.
-		 */
+
 		__clear_page_locked(page);
 		nr_reclaimed++;
-
-		/*
-		 * Is there need to periodically free_page_list? It would
-		 * appear not as the counts should be low
-		 */
 		list_add(&page->lru, &free_pages);
 		continue;
 
@@ -1414,7 +1611,6 @@ cull_mlocked:
 		continue;
 
 activate_locked:
-		/* Not a candidate for swapping, so reclaim swap space. */
 		if (PageSwapCache(page) && vm_swap_full())
 			try_to_free_swap(page);
 		VM_BUG_ON_PAGE(PageActive(page), page);
@@ -2156,20 +2352,30 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 
 
 	if(is_nvram(zone)){
-
 		current->flags |= PF_KSWAPD;
-
-		nr_reclaimed = pos_shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
-                               &nr_dirty, &nr_unqueued_dirty, &nr_congested,
-                               &nr_writeback, &nr_immediate,
-                               true);
 /*
-
-		nr_reclaimed = cflru_shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
+		nr_reclaimed = pos_shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
                                &nr_dirty, &nr_unqueued_dirty, &nr_congested,
                                &nr_writeback, &nr_immediate,
                                false);
 */
+
+//POS TEMP NYG//////////////////////////////////////////////////////////
+//		inactive++;
+		
+//		printk("[POS INACT] %d's sequence activated\n",inactive);
+		nr_reclaimed = cflru_shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
+                               &nr_dirty, &nr_unqueued_dirty, &nr_congested,
+                               &nr_writeback, &nr_immediate,
+                               false);
+		if(!cflru_clean){
+//			printk("[POS INACT] %d's second sequence activated\n",inactive);
+			nr_reclaimed += cflru_shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
+                        	       &nr_dirty, &nr_unqueued_dirty, &nr_congested, &nr_writeback, &nr_immediate, true);
+			cflru_clean = 1;
+		}
+//		printk("[POS INACT] %d's sequence is done\n",inactive);
+///////////////////////////////////////////////////////////////////////
 /*
 		nr_reclaimed = shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
                                &nr_dirty, &nr_unqueued_dirty, &nr_congested,
@@ -2181,9 +2387,11 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
                                &nr_dirty, &nr_unqueued_dirty, &nr_congested,
                                &nr_writeback, &nr_immediate,
                                false);
-*/		current->flags &= ~PF_KSWAPD; 	
+*/
+		current->flags &= ~PF_KSWAPD;
 	}
 	else {
+
 		nr_reclaimed = shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
 				&nr_dirty, &nr_unqueued_dirty, &nr_congested,
 				&nr_writeback, &nr_immediate,
@@ -2211,6 +2419,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 
 	free_hot_cold_page_list(&page_list, 1);
 
+////POS NYG TEMP
+//	printk("[POS INACT] After free hot~ %lu\n",inactive);
+//
 	/*
 	 * If reclaim is isolating dirty pages under writeback, it implies
 	 * that the long-lived page allocation rate is exceeding the page
@@ -2260,6 +2471,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 			congestion_wait(BLK_RW_ASYNC, HZ/10);
 	}
 
+////POS NYG TEMP
+//	printk("[POS INACT] before wait iff%lu\n",inactive);
+//
 	/*
 	 * Stall direct reclaim for IO completions if underlying BDIs or zone
 	 * is congested. Allow kswapd to continue until it starts encountering
@@ -2268,6 +2482,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 	if (!sc->hibernation_mode && !current_is_kswapd())
 		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
 
+////POS NYG TEMP
+//	printk("[POS INACT] End of %lu\n",inactive);
+//
 	trace_mm_vmscan_lru_shrink_inactive(zone->zone_pgdat->node_id,
 		zone_idx(zone),
 		nr_scanned, nr_reclaimed,
@@ -2382,7 +2599,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
 			putback_lru_page(page);
 			continue;
 		}
-
 		if (unlikely(buffer_heads_over_limit)) {
 			if (page_has_private(page) && trylock_page(page)) {
 				if (page_has_private(page))
@@ -2390,7 +2606,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
 				unlock_page(page);
 			}
 		}
-
 		if (page_referenced(page, 0, sc->target_mem_cgroup,
 				    &vm_flags)) {
 			nr_rotated += hpage_nr_pages(page);
@@ -2403,12 +2618,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
 			 * IO, plus JVM can create lots of anon VM_EXEC pages,
 			 * so we ignore them here.
 			 */
-			if(is_nvram(zone))
-			{
-				list_add(&page->lru, &l_active);
-				continue;
-			}
-
 
 			if ((vm_flags & VM_EXEC) && page_is_file_cache(page)) {
 				list_add(&page->lru, &l_active);
@@ -2417,17 +2626,15 @@ static void shrink_active_list(unsigned long nr_to_scan,
 		}
 
 		ClearPageActive(page);	/* we are de-activating */
-
-		if(PageDirty(page)&&is_nvram(zone))
+//// NYG POS TEMP
+/*
+		if(is_nvram(zone))
 		{
 			list_add(&page->lru, &l_inactive);
 			continue;
-		}
-		else if(!PageDirty(page)&&is_nvram(zone))
-		{
-			list_add_tail(&page->lru, &l_inactive);
-			continue;
 		}		
+*/
+///////
 		list_add(&page->lru, &l_inactive);
 	}
 
@@ -2746,7 +2953,6 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
 	struct blk_plug plug;
 	bool scan_adjusted = false;
-
 	get_scan_count(lruvec, sc, nr);
 
 	/* Record the original scan target for proportional adjustments later */
@@ -2762,7 +2968,6 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 			if (nr[lru]) {
 				nr_to_scan = min(nr[lru], SWAP_CLUSTER_MAX);
 				nr[lru] -= nr_to_scan;
-
 				nr_reclaimed += shrink_list(lru, nr_to_scan,
 							    lruvec, sc);
 			}
@@ -3245,13 +3450,15 @@ static unsigned long pos_do_try_to_free_pages(struct zone* zone,
 		total_scanned += sc->nr_scanned;
 		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
 			goto out;
-
 		/*
 		 * If we're getting trouble reclaiming, start doing
 		 * writepage even in laptop mode.
 		 */
+
+
 		if (sc->priority < DEF_PRIORITY - 2)
 			sc->may_writepage = 1;
+
 
 		/*
 		 * Try to write back as many pages as we just scanned.  This
@@ -3273,7 +3480,6 @@ out:
 
 	if (sc->nr_reclaimed)
 		return sc->nr_reclaimed;
-
 	/*
 	 * As hibernation is going on, kswapd is freezed so that it can't mark
 	 * the zone into all_unreclaimable. Thus bypassing all_unreclaimable
@@ -3479,18 +3685,19 @@ unsigned long pos_try_to_free_pages(struct zone* zone, int order, gfp_t gfp_mask
 		.gfp_mask = (gfp_mask = memalloc_noio_flags(gfp_mask)),
 		.may_writepage = !laptop_mode,
 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+//		.nr_to_reclaim = max(high_wmark_pages(zone),SWAP_CLUSTER_MAX),
 		.may_unmap = 1,
 		.may_swap = 1,
 		.order = order,
 		.priority = DEF_PRIORITY,
 		.target_mem_cgroup = NULL,
 		.nodemask = NULL,
-//		.nodemask = nodemask,
+		//		.nodemask = nodemask,
 	};
 
 	trace_mm_vmscan_direct_reclaim_begin(order,
-				sc.may_writepage,
-				gfp_mask);
+			sc.may_writepage,
+			gfp_mask);
 
 	nr_reclaimed = pos_do_try_to_free_pages(zone, &sc);
 
